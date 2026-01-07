@@ -69,7 +69,7 @@ class _StatusUpdateDialogState extends State<StatusUpdateDialog> {
             const Text('Select New Status:'),
             const SizedBox(height: 8),
             DropdownButtonFormField<SaleStatus>(
-              value: selectedStatus,
+              initialValue: selectedStatus,
               decoration: InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(

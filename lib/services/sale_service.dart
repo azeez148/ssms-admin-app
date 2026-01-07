@@ -148,7 +148,7 @@ class SaleService {
   // Get payment types (this might be in a different endpoint)
   Future<List<PaymentType>> getPaymentTypes() async {
     try {
-      final response = await _dio.get('/payment-types');
+      final response = await _dio.get('/paymentType/all');
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.map((json) => PaymentType.fromJson(json)).toList();
@@ -163,7 +163,7 @@ class SaleService {
   // Get delivery types
   Future<List<DeliveryType>> getDeliveryTypes() async {
     try {
-      final response = await _dio.get('/delivery-types');
+      final response = await _dio.get('/deliveryType/all');
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.map((json) => DeliveryType.fromJson(json)).toList();

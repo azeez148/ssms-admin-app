@@ -79,20 +79,29 @@ class CustomerResponse {
 @JsonSerializable()
 class SaleItem {
   final int? id;
+
   @JsonKey(name: 'product_id')
   final int productId;
+
   @JsonKey(name: 'product_name')
   final String productName;
+
   @JsonKey(name: 'product_category')
   final String productCategory;
+
   final String size;
+
   @JsonKey(name: 'quantity_available')
   final int quantityAvailable;
+
   int quantity;
+
   @JsonKey(name: 'sale_price')
   double salePrice;
+
   @JsonKey(name: 'total_price')
   double totalPrice;
+
   @JsonKey(name: 'sale_id')
   final int? saleId;
 
@@ -109,10 +118,53 @@ class SaleItem {
     this.saleId,
   });
 
-  factory SaleItem.fromJson(Map<String, dynamic> json) => _$SaleItemFromJson(json);
+  factory SaleItem.fromJson(Map<String, dynamic> json) =>
+      _$SaleItemFromJson(json);
+
   Map<String, dynamic> toJson() => _$SaleItemToJson(this);
 
   double calculateTotal() => quantity * salePrice;
+
+  /// 👇 ADD THIS
+  factory SaleItem.empty() => SaleItem(
+        id: null,
+        productId: 0,
+        productName: '',
+        productCategory: '',
+        size: '',
+        quantityAvailable: 0,
+        quantity: 0,
+        salePrice: 0,
+        totalPrice: 0,
+        saleId: null,
+      );
+
+  /// 👇 AND THIS
+  SaleItem copyWith({
+    int? id,
+    int? productId,
+    String? productName,
+    String? productCategory,
+    String? size,
+    int? quantityAvailable,
+    int? quantity,
+    double? salePrice,
+    double? totalPrice,
+    int? saleId,
+  }) {
+    return SaleItem(
+      id: id ?? this.id,
+      productId: productId ?? this.productId,
+      productName: productName ?? this.productName,
+      productCategory: productCategory ?? this.productCategory,
+      size: size ?? this.size,
+      quantityAvailable: quantityAvailable ?? this.quantityAvailable,
+      quantity: quantity ?? this.quantity,
+      salePrice: salePrice ?? this.salePrice,
+      totalPrice: totalPrice ?? this.totalPrice,
+      saleId: saleId ?? this.saleId,
+    );
+  }
 }
 
 @JsonSerializable()

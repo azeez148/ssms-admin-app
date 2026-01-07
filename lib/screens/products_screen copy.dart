@@ -296,8 +296,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   // For simplicity, we just capture value here, but UI won't update without state management.
                   // Using StatefulBuilder for the dialog content is better practice, but sticking to existing pattern:
                   hasImage = newValue.first;
-                  (context as Element)
-                      .markNeedsBuild(); // Quick hack for dialog refresh or use StatefulBuilder
+                  (context as Element).markNeedsBuild(); // Quick hack for dialog refresh or use StatefulBuilder
                 },
               ),
               const SizedBox(height: 16),
@@ -314,8 +313,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ],
                 selected: {isActive},
                 onSelectionChanged: (Set<bool?> newValue) {
-                  isActive = newValue.first;
-                  (context as Element).markNeedsBuild();
+                    isActive = newValue.first;
+                    (context as Element).markNeedsBuild();
                 },
               ),
               const SizedBox(height: 16),
@@ -359,8 +358,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.white),
             onPressed: () {
               _updateFilters(
                 categoryName: selectedCategory,
@@ -416,8 +414,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   bool get _hasMoreItems => _currentPage * _pageSize < _filteredProducts.length;
 
   void _loadNextPage() {
-    if (_isLoading && _displayedProducts.isEmpty)
-      return; // Allow pagination loading even if general loading is false
+    if (_isLoading && _displayedProducts.isEmpty) return; // Allow pagination loading even if general loading is false
 
     final start = _currentPage * _pageSize;
     final end = (start + _pageSize).clamp(0, _filteredProducts.length);
@@ -449,7 +446,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             if (item is Map<String, dynamic>) {
               // ... JSON parsing logic ...
               // Simply reusing the robust logic from previous code (omitted for brevity, assume correct)
-              try {
+               try {
                 // Attempt to parse the product with required and optional properties
                 final sanitizedJson = <String, dynamic>{
                   'id': int.tryParse(item['id']?.toString() ?? '') ?? 0,
@@ -465,15 +462,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   'category_id': item['category_id'] != null
                       ? int.tryParse(item['category_id'].toString()) ?? 0
                       : 0,
-                  'is_active': item['is_active'] == true ||
-                      item['is_active']?.toString() == 'true',
-                  'can_listed': item['can_listed'] == true ||
-                      item['can_listed']?.toString() == 'true',
+                  'is_active': item['is_active'] == true || item['is_active']?.toString() == 'true',
+                  'can_listed': item['can_listed'] == true || item['can_listed']?.toString() == 'true',
                   'category': item['category'] is Map<String, dynamic>
                       ? {
                           'name': item['category']['name']?.toString() ?? '',
-                          'description':
-                              item['category']['description']?.toString(),
+                          'description': item['category']['description']?.toString(),
                         }
                       : null,
                   'discounted_price': item['discounted_price'] != null
@@ -486,14 +480,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ? int.tryParse(item['offer_price'].toString())
                       : null,
                   'offer_name': item['offer_name']?.toString(),
-                  'size_map': (item['size_map'] as List<dynamic>?)
-                      ?.map((size) => {
-                            'size': size['size']?.toString() ?? '',
-                            'quantity': int.tryParse(
-                                    size['quantity']?.toString() ?? '0') ??
-                                0,
-                          })
-                      .toList(),
+                  'size_map': (item['size_map'] as List<dynamic>?)?.map((size) => {
+                        'size': size['size']?.toString() ?? '',
+                        'quantity': int.tryParse(size['quantity']?.toString() ?? '0') ?? 0,
+                      }).toList(),
                 };
 
                 products.add(Product.fromJson(sanitizedJson));
@@ -536,21 +526,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 700;
-
+    
     // Grid Setup
     int crossAxisCount = isMobile ? 1 : (screenWidth < 1100 ? 3 : 4);
     double childAspectRatio = isMobile ? 1.6 : 0.75;
-
+    
     return Scaffold(
       backgroundColor: surfaceColor,
       body: Column(
         children: [
           // 1. Header & Summary Section
           _buildHeader(isMobile),
-
+          
           // 2. Filters & Actions Bar (Overlapping)
           _buildActionBar(isMobile),
-
+          
           // 3. Active Filters
           if (_hasActiveFilters())
             Padding(
@@ -572,27 +562,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ? _buildEmptyState()
                     : RefreshIndicator(
                         onRefresh: () async {
-                          await _loadProducts();
+                           await _loadProducts();
                         },
                         child: GridView.builder(
                           controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
                             childAspectRatio: childAspectRatio,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
                           ),
-                          itemCount: _displayedProducts.length +
-                              (_hasMoreItems ? 1 : 0),
+                          itemCount: _displayedProducts.length + (_hasMoreItems ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index == _displayedProducts.length) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
+                              return const Center(child: CircularProgressIndicator());
                             }
-                            return _buildProductCard(
-                                _displayedProducts[index], isMobile);
+                            return _buildProductCard(_displayedProducts[index], isMobile);
                           },
                         ),
                       ),
@@ -642,23 +628,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
             children: [
               Expanded(
                 child: _buildSummaryItem(
-                    'Total Products',
-                    '${_allProducts.length}',
-                    Icons.inventory_2_outlined,
-                    Colors.blueAccent),
+                  'Total Products', 
+                  '${_allProducts.length}', 
+                  Icons.inventory_2_outlined, 
+                  Colors.blueAccent
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildSummaryItem('Active', '$activeCount',
-                    Icons.check_circle_outline, Colors.greenAccent),
-              ),
-              if (!isMobile) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSummaryItem('Categories', '$categoryCount',
-                      Icons.category_outlined, Colors.orangeAccent),
+                child: _buildSummaryItem(
+                  'Active', 
+                  '$activeCount', 
+                  Icons.check_circle_outline, 
+                  Colors.greenAccent
                 ),
-              ]
+              ),
+               if (!isMobile) ...[
+                 const SizedBox(width: 16),
+                 Expanded(
+                   child: _buildSummaryItem(
+                     'Categories', 
+                     '$categoryCount', 
+                     Icons.category_outlined, 
+                     Colors.orangeAccent
+                   ),
+                 ),
+               ]
             ],
           ),
           const SizedBox(height: 20), // Space for overlay
@@ -667,8 +662,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  Widget _buildSummaryItem(
-      String label, String value, IconData icon, Color color) {
+  Widget _buildSummaryItem(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
@@ -692,15 +686,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                    color: Colors.white.withOpacity(0.7), fontSize: 11),
+                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
               ),
               Text(
                 value,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           )
@@ -726,7 +716,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ],
         ),
-        child: isMobile
+        child: isMobile 
             ? Column(
                 children: [
                   _buildSearchField(),
@@ -741,8 +731,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         color: primaryColor,
                         style: IconButton.styleFrom(
                           backgroundColor: surfaceColor,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                     ],
@@ -763,8 +752,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       backgroundColor: surfaceColor,
                       foregroundColor: primaryColor,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     ),
                   ),
                 ],
@@ -841,58 +829,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         ApiService.instance.getFullImageUrl(product.imageUrl!),
                         fit: BoxFit.cover,
                         errorBuilder: (ctx, _, __) => const Center(
-                            child: Icon(Icons.image_not_supported,
-                                color: Colors.grey, size: 40)),
+                            child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40)),
                       )
                     else
-                      const Center(
-                          child: Icon(Icons.image_not_supported,
-                              color: Colors.grey, size: 40)),
-
+                      const Center(child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40)),
+                    
                     // Status Badge
                     if (!product.isActive)
                       Positioned(
                         top: 8,
                         right: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.red.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text('INACTIVE',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
+                          child: const Text('INACTIVE', 
+                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ),
-
+                    
                     // Offer Badge
                     if (product.offerName != null)
-                      Positioned(
+                       Positioned(
                         top: 8,
                         left: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.green,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(product.offerName!,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
+                          child: Text(product.offerName!, 
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ),
                   ],
                 ),
               ),
             ),
-
+            
             // Info Section
             Expanded(
               flex: isMobile ? 0 : 4,
@@ -909,14 +886,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           product.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         if (product.category?.name != null)
                           Text(
                             product.category!.name,
-                            style: TextStyle(
-                                color: Colors.grey[600], fontSize: 11),
+                            style: TextStyle(color: Colors.grey[600], fontSize: 11),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -929,8 +904,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (product.offerPrice != null ||
-                                product.discountedPrice != null)
+                            if (product.offerPrice != null || product.discountedPrice != null)
                               Text(
                                 '₹${product.sellingPrice}',
                                 style: const TextStyle(
@@ -949,27 +923,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             ),
                           ],
                         ),
-                        if (product.sizeMap != null &&
-                            product.sizeMap!.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                                color: surfaceColor,
-                                borderRadius: BorderRadius.circular(4)),
-                            child: Text(
-                              '${product.sizeMap!.length} Sizes',
-                              style: const TextStyle(
-                                  fontSize: 10, fontWeight: FontWeight.w500),
-                            ),
-                          )
+                        if (product.sizeMap != null && product.sizeMap!.isNotEmpty)
+                           Container(
+                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                             decoration: BoxDecoration(
+                               color: surfaceColor,
+                               borderRadius: BorderRadius.circular(4)
+                             ),
+                             child: Text(
+                               '${product.sizeMap!.length} Sizes',
+                               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                             ),
+                           )
                       ],
                     )
                   ],
                 ),
               ),
             ),
-            if (isMobile) const SizedBox(height: 12),
+            if (isMobile)
+               const SizedBox(height: 12),
           ],
         ),
       ),
@@ -989,11 +962,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                _filterOptions = const ProductFilterOptions();
-                _searchController.clear();
-                _applyFiltersAndSort();
-              });
+               setState(() {
+                  _filterOptions = const ProductFilterOptions();
+                  _searchController.clear();
+                  _applyFiltersAndSort();
+               });
             },
             child: const Text("Clear Filters"),
           )
@@ -1004,10 +977,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   bool _hasActiveFilters() {
     return _filterOptions.categoryName != null ||
-        _filterOptions.hasImage != null ||
-        _filterOptions.isActive != null ||
-        _filterOptions.canListed != null ||
-        _filterOptions.sizeFilter != null;
+           _filterOptions.hasImage != null ||
+           _filterOptions.isActive != null ||
+           _filterOptions.canListed != null ||
+           _filterOptions.sizeFilter != null;
   }
 
   List<Widget> _buildFilterChips() {
@@ -1042,7 +1015,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         onRemove: () => _updateFilters(sizeFilter: null),
       ));
     }
-
+    
     // Clear All Chip
     if (chips.isNotEmpty) {
       chips.add(
@@ -1059,20 +1032,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
             backgroundColor: Colors.red.withOpacity(0.1),
             labelStyle: const TextStyle(color: Colors.red, fontSize: 11),
             side: BorderSide.none,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
         ),
       );
     }
-
+    
     return chips;
   }
 
   // --- Actions & Dialogs (Preserved from original code with minor styling updates) ---
 
-  Future<void> _showProductActions(
-      BuildContext context, Product product) async {
+  Future<void> _showProductActions(BuildContext context, Product product) async {
     final result = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -1084,19 +1055,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               const SizedBox(height: 12),
-              Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2))),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 24),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.edit, color: Colors.blue),
                 ),
                 title: const Text('Update Details'),
@@ -1104,10 +1068,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               ListTile(
                 leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8)),
+                   padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.image, color: Colors.purple),
                 ),
                 title: const Text('Add/Update Image'),
@@ -1115,10 +1077,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               ListTile(
                 leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8)),
+                   padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.inventory, color: Colors.orange),
                 ),
                 title: const Text('Update Stock/Quantity'),
@@ -1126,12 +1086,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               ListTile(
                 leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const FaIcon(FontAwesomeIcons.whatsapp,
-                      color: Colors.green),
+                   padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green),
                 ),
                 title: const Text('Open WhatsApp Group'),
                 onTap: () => Navigator.pop(context, 'whatsapp'),
@@ -1190,8 +1147,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 _DetailRow('Discounted', '₹${product.discountedPrice}'),
               _DetailRow('Status', product.isActive ? 'Active' : 'Inactive'),
               const Divider(),
-              const Text('Stock:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Stock:', style: TextStyle(fontWeight: FontWeight.bold)),
               if (product.sizeMap != null)
                 ...product.sizeMap!.map((s) => Padding(
                       padding: const EdgeInsets.only(left: 16, top: 4),
@@ -1220,15 +1176,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
   // Keeping these implementation details as mostly standard Flutter dialogs but wrapped in standard styles if needed.
   // For brevity, assuming standard implementations similar to original code provided by user.
 
-  Future<void> _showUpdateProductDialog(
-      BuildContext context, Product product) async {
+  Future<void> _showUpdateProductDialog(BuildContext context, Product product) async {
     final nameController = TextEditingController(text: product.name);
     final descController = TextEditingController(text: product.description);
-    final unitPriceController =
-        TextEditingController(text: product.unitPrice.toString());
-    final sellingPriceController =
-        TextEditingController(text: product.sellingPrice.toString());
-
+    final unitPriceController = TextEditingController(text: product.unitPrice.toString());
+    final sellingPriceController = TextEditingController(text: product.sellingPrice.toString());
+    
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1237,27 +1190,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name')),
-              TextField(
-                  controller: descController,
-                  decoration: const InputDecoration(labelText: 'Description')),
-              TextField(
-                  controller: unitPriceController,
-                  decoration: const InputDecoration(labelText: 'Unit Price'),
-                  keyboardType: TextInputType.number),
-              TextField(
-                  controller: sellingPriceController,
-                  decoration: const InputDecoration(labelText: 'Selling Price'),
-                  keyboardType: TextInputType.number),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Name')),
+              TextField(controller: descController, decoration: const InputDecoration(labelText: 'Description')),
+              TextField(controller: unitPriceController, decoration: const InputDecoration(labelText: 'Unit Price'), keyboardType: TextInputType.number),
+              TextField(controller: sellingPriceController, decoration: const InputDecoration(labelText: 'Selling Price'), keyboardType: TextInputType.number),
             ],
           ),
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               try {
@@ -1276,8 +1217,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  Future<void> _showImagePickerDialog(
-      BuildContext context, Product product) async {
+  Future<void> _showImagePickerDialog(BuildContext context, Product product) async {
     final result = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
@@ -1317,16 +1257,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
           if (image.path.startsWith('blob:')) {
             // Web platform - use bytes
             final bytes = await image.readAsBytes();
-            await ApiService.instance.uploadProductImageBytes(
-                context, product.id, bytes, image.name);
+            await ApiService.instance.uploadProductImageBytes(context, product.id, bytes, image.name);
           } else {
             // Mobile platform - use file path
-            await ApiService.instance
-                .uploadProductImage(context, product.id, image.path);
+            await ApiService.instance.uploadProductImage(context, product.id, image.path);
           }
-
+          
           if (!mounted) return;
-
+          
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Image uploaded successfully')),
           );
@@ -1341,7 +1279,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  final Map<String, List<String>> sizeConfig = {
+final Map<String, List<String>> sizeConfig = {
     'Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
     'Five Sleeve Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
     'Full Sleeve Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
@@ -1361,37 +1299,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     'Sleeve Less - NS': ['S', 'M', 'L', 'XL', 'XXL'],
     'Track Pants - Imp': ['S', 'M', 'L', 'XL', 'XXL'],
     'Track Pants - Normal': ['S', 'M', 'L', 'XL', 'XXL'],
-    'Boot-Adult': [
-      '5',
-      '5.5',
-      '6',
-      '6.5',
-      '7',
-      '7.5',
-      '8',
-      '8.5',
-      '9',
-      '9.5',
-      '10',
-      '10.5',
-      '11'
-    ],
+    'Boot-Adult': ['5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11'],
     'Boot-Kids': ['-13', '-12', '-11', '1', '2', '3', '4'],
-    'Boot-Imp': [
-      '5',
-      '5.5',
-      '6',
-      '6.5',
-      '7',
-      '7.5',
-      '8',
-      '8.5',
-      '9',
-      '9.5',
-      '10',
-      '10.5',
-      '11'
-    ],
+    'Boot-Imp': ['5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11'],
     'Shorts-Kids': ['20', '22', '24', '26', '28', '30', '32', '34'],
     'Football': ['3', '4', '5'],
     'Cricket Ball': ['Standard'],
@@ -1404,30 +1314,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
     'Socks-Half': ['Free Size'],
     'Socks-Ankle': ['Free Size'],
     'Hand Sleeve': ['Free Size'],
-    'GK Glove': [
-      '5.5',
-      '6',
-      '6.5',
-      '7',
-      '7.5',
-      '8',
-      '8.5',
-      '9',
-      '9.5',
-      '10',
-      '10.5',
-      '11'
-    ],
+    'GK Glove': ['5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11'],
     'Trophy': ['Small', 'Medium', 'Large'],
   };
 
-  Future<void> _showQuantityUpdateDialog(
-      BuildContext context, Product product) async {
+Future<void> _showQuantityUpdateDialog(BuildContext context, Product product) async {
     final Map<String, TextEditingController> standardControllers = {};
     final Map<String, TextEditingController> customSizeControllers = {};
     final Map<String, TextEditingController> customQtyControllers = {};
     final Map<String, int> currentQuantities = {};
-
+    
     // Get standard sizes for this category
     final categoryName = product.category?.name ?? '';
     final standardSizes = sizeConfig[categoryName] ?? [];
@@ -1482,37 +1378,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   Wrap(
                     spacing: 16,
                     runSpacing: 12,
-                    children: standardControllers.entries
-                        .map((entry) => SizedBox(
-                              width: 130,
-                              child: TextField(
-                                controller: entry.value,
-                                decoration: InputDecoration(
-                                  labelText: '${entry.key} Quantity',
-                                  border: const OutlineInputBorder(),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                ),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ))
-                        .toList(),
+                    children: standardControllers.entries.map((entry) => SizedBox(
+                      width: 130,
+                      child: TextField(
+                        controller: entry.value,
+                        decoration: InputDecoration(
+                          labelText: '${entry.key} Quantity',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    )).toList(),
                   )
                 else
-                  const Text('No standard sizes for this category',
-                      style: TextStyle(color: Colors.grey)),
-
+                  const Text('No standard sizes for this category', style: TextStyle(color: Colors.grey)),
+                
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 12),
-
+                
                 // Custom Sizes Section
                 const Text(
                   'Custom Sizes',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 12),
-
+                
                 // Custom Size Entries
                 ...List.generate(customSizeControllers.length, (index) {
                   final key = 'custom_$index';
@@ -1527,8 +1419,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Size Name',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
                           ),
                         ),
@@ -1540,16 +1431,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Quantity',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
                             keyboardType: TextInputType.number,
                           ),
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.remove_circle,
-                              color: Colors.red),
+                          icon: const Icon(Icons.remove_circle, color: Colors.red),
                           onPressed: () {
                             setState(() {
                               customSizeControllers[key]?.dispose();
@@ -1566,7 +1455,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                   );
                 }),
-
+                
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.add),
@@ -1574,10 +1463,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   onPressed: () {
                     setState(() {
                       final nextIndex = customSizeControllers.length;
-                      customSizeControllers['custom_$nextIndex'] =
-                          TextEditingController();
-                      customQtyControllers['custom_$nextIndex'] =
-                          TextEditingController(text: '0');
+                      customSizeControllers['custom_$nextIndex'] = TextEditingController();
+                      customQtyControllers['custom_$nextIndex'] = TextEditingController(text: '0');
                     });
                   },
                 ),
@@ -1601,26 +1488,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (result == true) {
       try {
         final Map<String, int> updatedSizeMap = {};
-
+        
         // Add standard sizes
         standardControllers.forEach((size, controller) {
           updatedSizeMap[size] = int.tryParse(controller.text) ?? 0;
         });
-
+        
         // Add custom sizes (filter out empty size names)
         for (int i = 0; i < customSizeControllers.length; i++) {
           final key = 'custom_$i';
           final sizeName = customSizeControllers[key]?.text ?? '';
           if (sizeName.isNotEmpty) {
-            updatedSizeMap[sizeName] =
-                int.tryParse(customQtyControllers[key]?.text ?? '0') ?? 0;
+            updatedSizeMap[sizeName] = int.tryParse(customQtyControllers[key]?.text ?? '0') ?? 0;
           }
         }
 
-        await ApiService.instance
-            .updateSizeMap(context, product.id, updatedSizeMap);
+        await ApiService.instance.updateSizeMap(context, product.id, updatedSizeMap);
         if (!mounted) return;
-
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Quantities updated successfully')),
         );
@@ -1644,17 +1529,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
       controller.dispose();
     }
   }
-
+  
   Future<void> _openWhatsAppGroup(BuildContext context) async {
-    const whatsappUrl = 'YOUR_WHATSAPP_GROUP_URL'; // Replace with actual URL
-    final uri = Uri.parse(whatsappUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open WhatsApp')),
-      );
-    }
+      // ... Implementation for WhatsApp ...
+       const url = 'https://chat.whatsapp.com/YOUR_GROUP_LINK';
+       if (await canLaunchUrl(Uri.parse(url))) {
+         await launchUrl(Uri.parse(url));
+       }
   }
 }
