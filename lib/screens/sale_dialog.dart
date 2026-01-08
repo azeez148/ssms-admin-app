@@ -88,7 +88,7 @@ class _SaleDialogState extends State<SaleDialog> {
     paymentRefController =
         TextEditingController(text: widget.sale?.paymentReferenceNumber ?? '');
     totalPriceController = TextEditingController(
-        text: widget.sale?.totalPrice?.toStringAsFixed(2) ?? '0.00');
+        text: (widget.sale?.totalPrice ?? 0).toStringAsFixed(2));
     searchController = TextEditingController();
   }
 
@@ -238,7 +238,7 @@ class _SaleDialogState extends State<SaleDialog> {
 
   void _updateTotals() {
     subTotal = selectedItems.fold(0, (s, i) => s + (i.salePrice * i.quantity));
-    deliveryCharge = selectedDeliveryType?.charge?.toDouble() ?? 0;
+    deliveryCharge = (selectedDeliveryType?.charge ?? 0).toDouble();
 
     if (!isTotalPriceEdited) {
       totalPrice = subTotal + deliveryCharge;

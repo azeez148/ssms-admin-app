@@ -7,21 +7,21 @@ part of 'product.dart';
 // **************************************************************************
 
 Product _$ProductFromJson(Map<String, dynamic> json) => Product(
-      id: (json['id'] as num).toInt(),
+      id: json['id'] as int,
       name: json['name'] as String,
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
-      unitPrice: (json['unit_price'] as num).toInt(),
-      sellingPrice: (json['selling_price'] as num).toInt(),
-      categoryId: (json['category_id'] as num).toInt(),
+      unitPrice: json['unit_price'] as int,
+      sellingPrice: json['selling_price'] as int,
+      categoryId: json['category_id'] as int,
       isActive: json['is_active'] as bool,
       canListed: json['can_listed'] as bool,
       category: json['category'] == null
           ? null
           : Category.fromJson(json['category'] as Map<String, dynamic>),
-      offerId: (json['offer_id'] as num?)?.toInt(),
-      discountedPrice: (json['discounted_price'] as num).toInt(),
-      offerPrice: (json['offer_price'] as num).toInt(),
+      offerId: json['offer_id'] as int?,
+      discountedPrice: json['discounted_price'] as int,
+      offerPrice: json['offer_price'] as int?,
       sizeMap: (json['size_map'] as List<dynamic>?)
           ?.map((e) => ProductSize.fromJson(e as Map<String, dynamic>))
           .toList(),

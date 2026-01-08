@@ -13,13 +13,13 @@ class Product {
   @JsonKey(name: 'image_url')
   final String? imageUrl;
 
-  @JsonKey(name: 'unit_price')
+  @JsonKey(name: 'unit_price', defaultValue: 0)
   final int unitPrice;
 
-  @JsonKey(name: 'selling_price')
+  @JsonKey(name: 'selling_price', defaultValue: 0)
   final int sellingPrice;
 
-  @JsonKey(name: 'category_id')
+  @JsonKey(name: 'category_id', defaultValue: 0)
   final int categoryId;
 
   @JsonKey(name: 'is_active')
@@ -33,10 +33,10 @@ class Product {
   @JsonKey(name: 'offer_id')
   final int? offerId;
 
-  @JsonKey(name: 'discounted_price')
-  final int discountedPrice;
+  @JsonKey(name: 'discounted_price', defaultValue: 0)
+  final int? discountedPrice;
 
-  @JsonKey(name: 'offer_price')
+  @JsonKey(name: 'offer_price', defaultValue: 0)
   final int? offerPrice;
 
   @JsonKey(name: 'size_map')

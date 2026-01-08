@@ -1200,11 +1200,15 @@ Future<void> _loadProducts() async {
   Future<void> _showUpdateProductDialog(
       BuildContext context, Product product) async {
     final nameController = TextEditingController(text: product.name);
-    final descController = TextEditingController(text: product.description);
+    final descController = TextEditingController(text: product.description ?? '');
     final unitPriceController =
         TextEditingController(text: product.unitPrice.toString());
     final sellingPriceController =
         TextEditingController(text: product.sellingPrice.toString());
+    final discountedPriceController = TextEditingController(
+        text: product.discountedPrice?.toString() ?? '');
+    String? selectedCategoryName = product.category?.name;
+    bool canListed = product.canListed;
 
     await showDialog(
       context: context,
@@ -1215,35 +1219,104 @@ Future<void> _loadProducts() async {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name')),
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
               TextField(
-                  controller: descController,
-                  decoration: const InputDecoration(labelText: 'Description')),
+                controller: descController,
+                decoration: const InputDecoration(labelText: 'Description'),
+              ),
+              DropdownButtonFormField<String?>(
+                value: selectedCategoryName,
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Select Category'),
+                  ),
+                  ..._availableCategoriesList.map((cat) => DropdownMenuItem(
+                        value: cat.name,
+                        child: Text(cat.name),
+                      )),
+                ],
+                onChanged: (val) => selectedCategoryName = val,
+                decoration: const InputDecoration(labelText: 'Category'),
+              ),
               TextField(
-                  controller: unitPriceController,
-                  decoration: const InputDecoration(labelText: 'Unit Price'),
-                  keyboardType: TextInputType.number),
+                controller: unitPriceController,
+                decoration: const InputDecoration(labelText: 'Unit Price'),
+                keyboardType: TextInputType.number,
+              ),
               TextField(
-                  controller: sellingPriceController,
-                  decoration: const InputDecoration(labelText: 'Selling Price'),
-                  keyboardType: TextInputType.number),
+                controller: sellingPriceController,
+                decoration: const InputDecoration(labelText: 'Selling Price'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: discountedPriceController,
+                decoration: const InputDecoration(labelText: 'Discounted Price'),
+                keyboardType: TextInputType.number,
+              ),
+              CheckboxListTile(
+                value: canListed,
+                onChanged: (val) => canListed = val ?? true,
+                title: const Text('Can be listed'),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
             ],
           ),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
+              // Validate required fields
+              if (nameController.text.isEmpty ||
+                  unitPriceController.text.isEmpty ||
+                  sellingPriceController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill all required fields')),
+                );
+                return;
+              }
+
               try {
-                // Implement update logic here using ApiService
-                // await ApiService.instance.updateProduct(...)
+                final updatedProduct = Product(
+                  id: product.id,
+                  name: nameController.text,
+                  description: descController.text,
+                  category: selectedCategoryName != null
+                      ? _availableCategoriesList.firstWhere(
+                          (cat) => cat.name == selectedCategoryName,
+                          orElse: () => product.category!)
+                      : product.category,
+                  categoryId: product.categoryId,
+                  unitPrice: int.tryParse(unitPriceController.text) ?? 0,
+                  sellingPrice: int.tryParse(sellingPriceController.text) ?? 0,
+                  discountedPrice: int.tryParse(discountedPriceController.text) ?? 0,
+                  offerPrice: product.offerPrice,
+                  offerId: product.offerId,
+                  canListed: canListed,
+                  isActive: product.isActive,
+                  imageUrl: product.imageUrl,
+                  sizeMap: product.sizeMap,
+                );
+
+                await ProductService().updateProduct(
+                  context,
+                  product.id,
+                  updatedProduct.toJson(),
+                );
+
+                if (!context.mounted) return;
                 Navigator.pop(context);
-                _loadProducts(); // Refresh
+                _loadProducts(); // Refresh the list
               } catch (e) {
-                // Handle error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error updating product: $e')),
+                );
               }
             },
             child: const Text('Update'),

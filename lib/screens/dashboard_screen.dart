@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/dashboard.dart';
 import '../services/api_service.dart';
 
@@ -11,6 +12,11 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<Dashboard> _dashboardFuture;
+  
+  // Styling Constants
+  final Color primaryColor = const Color(0xFF2A2D3E);
+  final Color accentColor = const Color(0xFF2196F3);
+  final Color surfaceColor = const Color(0xFFF5F7FA);
 
   @override
   void initState() {
@@ -25,10 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<Dashboard> _fetchDashboardData() async {
     try {
       final data = await ApiService.instance.getDashboardData(context);
-      // print('Dashboard API Response: $data');
-      Dashboard dashboardData = Dashboard.fromJson(data);
-      // print('Parsed Dashboard: recent_sales=${dashboardData.recent_sales}, recent_purchases=${dashboardData.recent_purchases}');
-      return dashboardData;
+      return Dashboard.fromJson(data);
     } catch (e) {
       print('Error fetching dashboard: $e');
       rethrow;
@@ -37,11 +40,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        setState(() => _loadDashboard());
-      },
-      child: FutureBuilder<Dashboard>(
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 800;
+
+    return Scaffold(
+      backgroundColor: surfaceColor,
+      body: FutureBuilder<Dashboard>(
         future: _dashboardFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -49,21 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error loading dashboard: ${snapshot.error}'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => setState(() => _loadDashboard()),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
+            return _buildErrorState(snapshot.error);
           }
 
           if (!snapshot.hasData) {
@@ -71,171 +61,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           final dashboard = snapshot.data!;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Key Metrics
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  children: [
-                    _MetricCard(
-                      title: 'Total Products',
-                      value: (dashboard.total_products ?? 0).toString(),
-                      icon: Icons.inventory_2,
-                      color: Colors.blue,
-                    ),
-                    _MetricCard(
-                      title: 'Total Categories',
-                      value: (dashboard.total_categories ?? 0).toString(),
-                      icon: Icons.category,
-                      color: Colors.purple,
-                    ),
-                    _MetricCard(
-                      title: 'Total Sales',
-                      value: '₹${dashboard.total_sales?['total_revenue'] ?? dashboard.total_sales?['total'] ?? 0}',
-                      icon: Icons.shopping_cart,
-                      color: Colors.green,
-                    ),
-                    _MetricCard(
-                      title: 'Total Purchases',
-                      value: '₹${dashboard.total_purchases?['total'] ?? 0}',
-                      icon: Icons.shopping_bag,
-                      color: Colors.orange,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
 
-                // Recent Sales Section
-                Text(
-                  'Recent Sales (Last 10)',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                if (dashboard.recent_sales == null || dashboard.recent_sales!.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('No recent sales data available'),
-                    ),
-                  )
-                else
-                  Card(
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() => _loadDashboard());
+              await _dashboardFuture;
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. Header & Metrics
+                  _buildHeader(dashboard, isMobile),
+                  
+                  // 2. Content Sections
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Product')),
-                              DataColumn(label: Text('Qty')),
-                              DataColumn(label: Text('Amount')),
-                              DataColumn(label: Text('Date')),
-                            ],
-                            rows: dashboard.recent_sales!
-                                .take(10)
-                                .map(
-                                  (sale) => DataRow(
-                                    cells: [
-                                      DataCell(Text(
-                                        sale.getProductName()?.isNotEmpty == true ? sale.getProductName()! : 'Product #${sale.product_id ?? sale.id ?? '?'}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      )),
-                                      DataCell(Text(sale.getQuantity().toString())),
-                                      DataCell(Text('₹${sale.getAmount()}')),
-                                      DataCell(Text(_formatDate(sale.getDate()))),
-                                    ],
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Text(
-                            'Total Sales: ${dashboard.recent_sales!.length} transactions',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ),
+                        // Recent Sales
+                        _buildSectionTitle('Recent Sales (Last 10)', Icons.receipt_long),
+                        const SizedBox(height: 16),
+                        _buildRecentSalesTable(dashboard, isMobile),
+                        const SizedBox(height: 32),
+
+                        // Most Sold Items
+                        _buildSectionTitle('Top Performing Items', Icons.trending_up),
+                        const SizedBox(height: 16),
+                        _buildMostSoldItems(dashboard, isMobile),
+                        const SizedBox(height: 32),
+
+                        // Recent Purchases
+                        _buildSectionTitle('Recent Purchases', Icons.shopping_bag_outlined),
+                        const SizedBox(height: 16),
+                        _buildRecentPurchasesTable(dashboard, isMobile),
+                        const SizedBox(height: 32), // Bottom padding
                       ],
                     ),
                   ),
-                const SizedBox(height: 24),
-
-                // Most Sold Items
-                Text(
-                  'Most Sold Items',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                _buildMostSoldItems(dashboard),
-                const SizedBox(height: 24),
-
-                // Recent Purchases
-                Text(
-                  'Recent Purchases (Last 10)',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                if (dashboard.recent_purchases == null || dashboard.recent_purchases!.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('No recent purchases data available'),
-                    ),
-                  )
-                else
-                  Card(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Product')),
-                              DataColumn(label: Text('Qty')),
-                              DataColumn(label: Text('Amount')),
-                              DataColumn(label: Text('Date')),
-                            ],
-                            rows: dashboard.recent_purchases!
-                                .take(10)
-                                .map(
-                                  (purchase) => DataRow(
-                                    cells: [
-                                      DataCell(Text(
-                                        purchase.product_name?.isNotEmpty == true ? purchase.product_name! : 'Product #${purchase.product_id ?? '?'}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      )),
-                                      DataCell(Text((purchase.quantity ?? 0).toString())),
-                                      DataCell(Text('₹${purchase.getAmount()}')),
-                                      DataCell(Text(_formatDate(purchase.getDate()))),
-                                    ],
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Text(
-                            'Total Purchases: ${dashboard.recent_purchases!.length} transactions',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -243,72 +110,314 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMostSoldItems(Dashboard dashboard) {
-    final items = dashboard.most_sold_items ?? {};
-    if (items.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('No data available'),
+  Widget _buildHeader(Dashboard dashboard, bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: primaryColor,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
         ),
-      );
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Dashboard Overview',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                onPressed: () => setState(() => _loadDashboard()),
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                tooltip: 'Refresh Data',
+              )
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Metrics Grid
+          if (isMobile)
+            Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _buildMetricCard('Total Products', '${dashboard.total_products ?? 0}', Icons.inventory_2, Colors.blueAccent)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildMetricCard('Categories', '${dashboard.total_categories ?? 0}', Icons.category, Colors.purpleAccent)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _buildMetricCard('Total Revenue', '₹${dashboard.total_sales?['total_revenue'] ?? 0}', Icons.attach_money, Colors.greenAccent)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildMetricCard('Total Purchases', '₹${dashboard.total_purchases?['total'] ?? 0}', Icons.shopping_cart, Colors.orangeAccent)),
+                  ],
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(child: _buildMetricCard('Total Products', '${dashboard.total_products ?? 0}', Icons.inventory_2, Colors.blueAccent)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildMetricCard('Categories', '${dashboard.total_categories ?? 0}', Icons.category, Colors.purpleAccent)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildMetricCard('Total Revenue', '₹${dashboard.total_sales?['total_revenue'] ?? 0}', Icons.attach_money, Colors.greenAccent)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildMetricCard('Total Purchases', '₹${dashboard.total_purchases?['total'] ?? 0}', Icons.shopping_cart, Colors.orangeAccent)),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: primaryColor, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: primaryColor,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentSalesTable(Dashboard dashboard, bool isMobile) {
+    if (dashboard.recent_sales == null || dashboard.recent_sales!.isEmpty) {
+      return _buildEmptyState('No recent sales data');
     }
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(Colors.grey[50]),
+          dataRowHeight: 60,
+          horizontalMargin: 24,
+          columnSpacing: 30,
+          columns: const [
+            DataColumn(label: Text('Product')),
+            DataColumn(label: Text('Qty')),
+            DataColumn(label: Text('Amount')),
+            DataColumn(label: Text('Date')),
+          ],
+          rows: dashboard.recent_sales!
+              .take(10)
+              .map((sale) => DataRow(
+                cells: [
+                  DataCell(
+                    SizedBox(
+                      width: 150,
+                      child: Text(
+                        sale.getProductName()?.isNotEmpty == true ? sale.getProductName()! : 'Product #${sale.product_id ?? sale.id ?? '?'}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  DataCell(Text('${sale.getQuantity()}')),
+                  DataCell(Text(
+                    '₹${sale.getAmount()}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                  )),
+                  DataCell(Text(
+                    _formatDate(sale.getDate()),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  )),
+                ],
+              )).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentPurchasesTable(Dashboard dashboard, bool isMobile) {
+    if (dashboard.recent_purchases == null || dashboard.recent_purchases!.isEmpty) {
+      return _buildEmptyState('No recent purchase data');
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(Colors.grey[50]),
+          dataRowHeight: 60,
+          horizontalMargin: 24,
+          columnSpacing: 30,
+          columns: const [
+            DataColumn(label: Text('Product')),
+            DataColumn(label: Text('Qty')),
+            DataColumn(label: Text('Cost')),
+            DataColumn(label: Text('Date')),
+          ],
+          rows: dashboard.recent_purchases!
+              .take(10)
+              .map((purchase) => DataRow(
+                cells: [
+                  DataCell(
+                    SizedBox(
+                      width: 150,
+                      child: Text(
+                        purchase.product_name?.isNotEmpty == true ? purchase.product_name! : 'Product #${purchase.product_id ?? '?'}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  DataCell(Text('${purchase.quantity ?? 0}')),
+                  DataCell(Text(
+                    '₹${purchase.getAmount()}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                  )),
+                  DataCell(Text(
+                    _formatDate(purchase.getDate()),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  )),
+                ],
+              )).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMostSoldItems(Dashboard dashboard, bool isMobile) {
+    final items = dashboard.most_sold_items ?? {};
+    if (items.isEmpty) {
+      return _buildEmptyState('No data available');
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: items.length,
-        separatorBuilder: (context, index) => const Divider(),
+        separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey[100]),
         itemBuilder: (context, index) {
           final item = items.entries.elementAt(index);
           final data = _parseItemData(item.value);
           
           return ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            leading: CircleAvatar(
+              backgroundColor: Colors.blue.withOpacity(0.1),
+              child: Text(
+                '#${index + 1}',
+                style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+              ),
+            ),
             title: Text(
               data['product_name'] ?? 'Unknown Product',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            subtitle: Text(
+              'Category: ${data['product_category'] ?? 'N/A'}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const SizedBox(height: 4),
                 Text(
-                  'Category: ${data['product_category'] ?? 'N/A'}',
-                  style: const TextStyle(fontSize: 12),
+                  '${data['total_quantity'] ?? 0} Sold',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Sold: ${data['total_quantity'] ?? 0} units',
-                        style: const TextStyle(fontSize: 12, color: Colors.green),
-                      ),
-                    ),
-                    Text(
-                      'Revenue: ₹${data['total_revenue'] ?? 0}',
-                      style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w500),
-                    ),
-                  ],
+                Text(
+                  '₹${data['total_revenue'] ?? 0}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${data['total_quantity'] ?? 0}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                  fontSize: 16,
-                ),
-              ),
             ),
           );
         },
@@ -316,9 +425,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildEmptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[300]),
+          const SizedBox(height: 8),
+          Text(message, style: TextStyle(color: Colors.grey[400])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object? error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+          const SizedBox(height: 16),
+          Text('Error loading dashboard', style: TextStyle(color: Colors.grey[800], fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(error.toString(), style: TextStyle(color: Colors.grey[600], fontSize: 12), textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => setState(() => _loadDashboard()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helpers
   Map<String, dynamic> _parseItemData(dynamic itemValue) {
     if (itemValue is String) {
-      // Parse string format: {product_name: X, product_category: Y, total_quantity: Z, total_revenue: W}
       try {
         final regexName = RegExp(r'product_name:\s*([^,}]+)');
         final regexCategory = RegExp(r'product_category:\s*([^,}]+)');
@@ -332,15 +485,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'total_revenue': int.tryParse(regexRevenue.firstMatch(itemValue)?.group(1) ?? '0') ?? 0,
         };
       } catch (e) {
-        return {
-          'product_name': 'Unknown',
-          'product_category': 'N/A',
-          'total_quantity': 0,
-          'total_revenue': 0,
-        };
+        return {'product_name': 'Unknown', 'product_category': 'N/A', 'total_quantity': 0, 'total_revenue': 0};
       }
     } else if (itemValue is Map) {
-      // Handle if it's already a Map
       return {
         'product_name': itemValue['product_name'] ?? 'Unknown',
         'product_category': itemValue['product_category'] ?? 'N/A',
@@ -348,77 +495,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'total_revenue': itemValue['total_revenue'] ?? 0,
       };
     }
-    
-    return {
-      'product_name': 'Unknown',
-      'product_category': 'N/A',
-      'total_quantity': 0,
-      'total_revenue': 0,
-    };
+    return {'product_name': 'Unknown', 'product_category': 'N/A', 'total_quantity': 0, 'total_revenue': 0};
   }
 
   String _formatDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
       final date = DateTime.parse(dateStr);
-      return '${date.day}/${date.month}/${date.year}';
+      return DateFormat('MMM dd, yyyy').format(date);
     } catch (e) {
       return dateStr;
     }
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _MetricCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    Key? key,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
