@@ -302,10 +302,20 @@ class _SaleDialogState extends State<SaleDialog> {
       status: SaleStatus.completed,
     );
 
-    widget.onSaleCreated(saleCreate);
-    // Don't pop here if you want to keep the POS open for next sale,
-    // but usually dialogs close.
-    if (mounted) Navigator.pop(context);
+    try {
+      await _saleService.addSale(saleCreate);
+      widget.onSaleCreated(saleCreate);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        setState(() {
+          isSaving = false;
+        });
+      }
+    }
   }
 
   @override
