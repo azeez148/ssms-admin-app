@@ -3,6 +3,7 @@ import 'screens/products_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sales_screen.dart';
+import 'screens/customers_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,6 +39,7 @@ class _MainScreenState extends State<MainScreen> {
     const DashboardScreen(),
     const ProductsScreen(),
     const SalesScreen(),
+    const CustomersScreen(), // Add CustomersScreen
   ];
 
   @override
@@ -113,14 +115,13 @@ class _MainScreenState extends State<MainScreen> {
             },
           ),
           _DrawerItem(
-            icon: Icons.shopping_bag,
-            title: 'Purchases',
-            onTap: () => _showFeatureNotAvailable(context, 'Purchases'),
-          ),
-          _DrawerItem(
             icon: Icons.people,
             title: 'Customers',
-            onTap: () => _showFeatureNotAvailable(context, 'Customers'),
+            isSelected: _selectedIndex == 3,
+            onTap: () {
+              setState(() => _selectedIndex = 3);
+              Navigator.pop(context);
+            },
           ),
           const Divider(),
           _DrawerItem(

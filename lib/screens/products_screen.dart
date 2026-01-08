@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_admin_app/models/category.dart';
+import 'package:flutter_admin_app/models/product_size.dart';
+import 'package:flutter_admin_app/services/product_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -158,6 +161,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   ProductSortOption _sortOption = ProductSortOption.sellingPriceAsc;
   Set<String> _availableCategories = {};
   Set<String> _availableSizes = {};
+  List<Category> _availableCategoriesList = [];  // Category objects for add product dialog
 
   // Styling Constants (Matching SalesScreen)
   final Color primaryColor = const Color(0xFF2A2D3E);
@@ -184,6 +188,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
         .where((p) => p.category?.name != null)
         .map((p) => p.category!.name)
         .toSet();
+
+    // Build category objects list (removing duplicates by name)
+    final Map<String, Category> categoriesMap = {};
+    for (final product in _allProducts) {
+      if (product.category != null) {
+        categoriesMap[product.category!.name] = product.category!;
+      }
+    }
+    _availableCategoriesList = categoriesMap.values.toList();
 
     _availableSizes = _allProducts
         .where((p) => p.sizeMap != null)
@@ -430,107 +443,65 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
-  Future<void> _loadProducts() async {
+Future<void> _loadProducts() async {
+  setState(() {
+    _isLoading = true;
+    _currentPage = 0;
+    _displayedProducts.clear();
+  });
+
+  try {
+    final List<dynamic> response =
+        await ApiService.instance.getProducts(context);
+
+    final products = response
+        .whereType<Map<String, dynamic>>()
+        .map((json) {
+          print('Raw product JSON: $json'); // Debug print
+          return Product.fromJson({
+            ...json,
+            // Match Angular imageUrl logic
+            'image_url': json['image_url'] != null
+                ? '${ApiService.defaultBaseUrl}/${json['image_url']}'
+                : null,
+            // Match Angular defaults
+            'offer_id': json['offer_id'],
+            'discounted_price': json['discounted_price'] ?? 0,
+            'offer_price': json['offer_price'] ?? 0,
+          });
+        })
+        .toList();
+
+    if (!mounted) return;
+
     setState(() {
-      _isLoading = true;
-      _displayedProducts = [];
-      _currentPage = 0;
+      _allProducts = products;
+      _updateAvailableFilters();
+      _applyFiltersAndSort();
+      _isLoading = false;
     });
 
-    try {
-      final List<dynamic> response =
-          await ApiService.instance.getProducts(context);
+    debugPrint('Loaded ${products.length} products');
+  } catch (e, st) {
+    debugPrint('Error loading products: $e');
+    debugPrintStack(stackTrace: st);
 
-      if (mounted) {
-        final products = <Product>[];
+    if (!mounted) return;
 
-        for (final item in response) {
-          try {
-            if (item is Map<String, dynamic>) {
-              // ... JSON parsing logic ...
-              // Simply reusing the robust logic from previous code (omitted for brevity, assume correct)
-              try {
-                // Attempt to parse the product with required and optional properties
-                final sanitizedJson = <String, dynamic>{
-                  'id': int.tryParse(item['id']?.toString() ?? '') ?? 0,
-                  'name': item['name']?.toString() ?? 'Unnamed Product',
-                  'image_url': item['image_url']?.toString(),
-                  'description': item['description']?.toString(),
-                  'unit_price': item['unit_price'] != null
-                      ? int.tryParse(item['unit_price'].toString()) ?? 0
-                      : 0,
-                  'selling_price': item['selling_price'] != null
-                      ? int.tryParse(item['selling_price'].toString()) ?? 0
-                      : 0,
-                  'category_id': item['category_id'] != null
-                      ? int.tryParse(item['category_id'].toString()) ?? 0
-                      : 0,
-                  'is_active': item['is_active'] == true ||
-                      item['is_active']?.toString() == 'true',
-                  'can_listed': item['can_listed'] == true ||
-                      item['can_listed']?.toString() == 'true',
-                  'category': item['category'] is Map<String, dynamic>
-                      ? {
-                          'name': item['category']['name']?.toString() ?? '',
-                          'description':
-                              item['category']['description']?.toString(),
-                        }
-                      : null,
-                  'discounted_price': item['discounted_price'] != null
-                      ? int.tryParse(item['discounted_price'].toString())
-                      : null,
-                  'offer_id': item['offer_id'] != null
-                      ? int.tryParse(item['offer_id'].toString())
-                      : null,
-                  'offer_price': item['offer_price'] != null
-                      ? int.tryParse(item['offer_price'].toString())
-                      : null,
-                  'offer_name': item['offer_name']?.toString(),
-                  'size_map': (item['size_map'] as List<dynamic>?)
-                      ?.map((size) => {
-                            'size': size['size']?.toString() ?? '',
-                            'quantity': int.tryParse(
-                                    size['quantity']?.toString() ?? '0') ??
-                                0,
-                          })
-                      .toList(),
-                };
+    setState(() => _isLoading = false);
 
-                products.add(Product.fromJson(sanitizedJson));
-              } catch (e) {
-                print('Error parsing individual product: $e');
-                continue;
-              }
-            }
-          } catch (itemError) {
-            continue;
-          }
-        }
-
-        setState(() {
-          _allProducts = products;
-          _updateAvailableFilters();
-          _isLoading = false;
-          _applyFiltersAndSort();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading products: ${e.toString()}'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: _loadProducts,
-            ),
-          ),
-        );
-      }
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to load products'),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: _loadProducts,
+        ),
+      ),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -599,6 +570,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+  backgroundColor: primaryColor,
+  child: const Icon(Icons.add, color: Colors.white),
+  tooltip: 'Add Product',
+  onPressed: () => _showAddProductDialog(context),
+),
     );
   }
 
@@ -870,7 +847,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
 
                     // Offer Badge
-                    if (product.offerName != null)
+                    if (product.offerId != null)
                       Positioned(
                         top: 8,
                         left: 8,
@@ -881,7 +858,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             color: Colors.green,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(product.offerName!,
+                          child: Text(product.offerId.toString(),
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -940,7 +917,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 ),
                               ),
                             Text(
-                              '₹${product.offerPrice ?? product.discountedPrice ?? product.sellingPrice}',
+                              '₹${product.discountedPrice}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: primaryColor,
@@ -1436,7 +1413,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     // Initialize standard size controllers
     for (final size in standardSizes) {
       final sizeMapList = product.sizeMap ?? [];
-      ProductSizeBase? existingSize;
+      ProductSize? existingSize;
       try {
         existingSize = sizeMapList.firstWhere((s) => s.size == size);
       } catch (e) {
@@ -1657,4 +1634,137 @@ class _ProductsScreenState extends State<ProductsScreen> {
       );
     }
   }
+
+Future<void> _showAddProductDialog(BuildContext context) async {
+  final nameController = TextEditingController();
+  final descController = TextEditingController();
+  final unitPriceController = TextEditingController();
+  final sellingPriceController = TextEditingController();
+  final discountedPriceController = TextEditingController();
+  String? selectedCategoryId;
+  bool canListed = true;
+
+  await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Add New Product'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: descController,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            DropdownButtonFormField<String?>(
+              value: selectedCategoryId,
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Select Category'),
+                ),
+                ..._availableCategoriesList.map((cat) => DropdownMenuItem(
+                      value: cat.id.toString(),
+                      child: Text(cat.name),
+                    )),
+              ],
+              onChanged: (val) => selectedCategoryId = val,
+              decoration: const InputDecoration(labelText: 'Category'),
+            ),
+            TextField(
+              controller: unitPriceController,
+              decoration: const InputDecoration(labelText: 'Unit Price'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: sellingPriceController,
+              decoration: const InputDecoration(labelText: 'Selling Price'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: discountedPriceController,
+              decoration: const InputDecoration(labelText: 'Discounted Price'),
+              keyboardType: TextInputType.number,
+            ),
+            CheckboxListTile(
+              value: canListed,
+              onChanged: (val) => canListed = val ?? true,
+              title: const Text('Can be listed'),
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            // Validate
+            if (nameController.text.isEmpty ||
+                selectedCategoryId == null ||
+                unitPriceController.text.isEmpty ||
+                sellingPriceController.text.isEmpty ||
+                discountedPriceController.text.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please fill all required fields')),
+              );
+              return;
+            }
+            
+            // Find category object from list by name
+            Category? selectedCategory;
+            try {
+              selectedCategory = _availableCategoriesList
+                  .firstWhere((cat) => cat.id == int.parse(selectedCategoryId!));
+            } catch (e) {
+              selectedCategory = null;
+            }
+
+            if (selectedCategory == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Selected category not found')),
+              );
+              return;
+            }
+
+            final newProduct = Product(
+              id: 0,
+              name: nameController.text,
+              description: descController.text,
+              category: selectedCategory,
+              categoryId: selectedCategory.id,
+              unitPrice: int.tryParse(unitPriceController.text) ?? 0,
+              sellingPrice: int.tryParse(sellingPriceController.text) ?? 0,
+              discountedPrice: int.tryParse(discountedPriceController.text) ?? 0,
+              canListed: canListed,
+              isActive: true,
+              imageUrl: null,
+              sizeMap: [], offerPrice: 0,
+            );
+            debugPrint('Adding product: ${newProduct.toJson()}');
+            try {
+              await ProductService().addProduct(context, newProduct);
+              // Navigator.pop(context);
+              // _loadProducts();
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error adding product: $e')),
+              );
+            }
+          },
+          child: const Text('Add'),
+        ),
+      ],
+    ),
+  );
+}
+
+
 }

@@ -7,7 +7,7 @@ part of 'sale.dart';
 // **************************************************************************
 
 PaymentType _$PaymentTypeFromJson(Map<String, dynamic> json) => PaymentType(
-      id: json['id'] as int,
+      id: (json['id'] as num).toInt(),
       name: json['name'] as String,
       description: json['description'] as String?,
     );
@@ -20,7 +20,7 @@ Map<String, dynamic> _$PaymentTypeToJson(PaymentType instance) =>
     };
 
 DeliveryType _$DeliveryTypeFromJson(Map<String, dynamic> json) => DeliveryType(
-      id: json['id'] as int,
+      id: (json['id'] as num).toInt(),
       name: json['name'] as String,
       description: json['description'] as String?,
       charge: (json['charge'] as num).toDouble(),
@@ -36,7 +36,7 @@ Map<String, dynamic> _$DeliveryTypeToJson(DeliveryType instance) =>
 
 CustomerResponse _$CustomerResponseFromJson(Map<String, dynamic> json) =>
     CustomerResponse(
-      id: json['id'] as int,
+      id: (json['id'] as num).toInt(),
       name: json['name'] as String,
       address: json['address'] as String?,
       mobile: json['mobile'] as String?,
@@ -59,16 +59,16 @@ Map<String, dynamic> _$CustomerResponseToJson(CustomerResponse instance) =>
     };
 
 SaleItem _$SaleItemFromJson(Map<String, dynamic> json) => SaleItem(
-      id: json['id'] as int?,
-      productId: json['product_id'] as int,
+      id: (json['id'] as num?)?.toInt(),
+      productId: (json['product_id'] as num).toInt(),
       productName: json['product_name'] as String,
       productCategory: json['product_category'] as String,
       size: json['size'] as String,
-      quantityAvailable: json['quantity_available'] as int,
-      quantity: json['quantity'] as int,
+      quantityAvailable: (json['quantity_available'] as num).toInt(),
+      quantity: (json['quantity'] as num).toInt(),
       salePrice: (json['sale_price'] as num).toDouble(),
       totalPrice: (json['total_price'] as num).toDouble(),
-      saleId: json['sale_id'] as int?,
+      saleId: (json['sale_id'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$SaleItemToJson(SaleItem instance) => <String, dynamic>{
@@ -85,15 +85,15 @@ Map<String, dynamic> _$SaleItemToJson(SaleItem instance) => <String, dynamic>{
     };
 
 Sale _$SaleFromJson(Map<String, dynamic> json) => Sale(
-      id: json['id'] as int,
+      id: (json['id'] as num).toInt(),
       date: json['date'] as String,
-      totalQuantity: json['total_quantity'] as int,
+      totalQuantity: (json['total_quantity'] as num).toInt(),
       totalPrice: (json['total_price'] as num).toDouble(),
-      paymentTypeId: json['payment_type_id'] as int,
+      paymentTypeId: (json['payment_type_id'] as num).toInt(),
       paymentReferenceNumber: json['payment_reference_number'] as String?,
-      deliveryTypeId: json['delivery_type_id'] as int,
-      shopId: json['shop_id'] as int,
-      customerId: json['customer_id'] as int,
+      deliveryTypeId: (json['delivery_type_id'] as num).toInt(),
+      shopId: (json['shop_id'] as num).toInt(),
+      customerId: (json['customer_id'] as num).toInt(),
       status: $enumDecodeNullable(_$SaleStatusEnumMap, json['status']),
       saleItems: (json['sale_items'] as List<dynamic>?)
           ?.map((e) => SaleItem.fromJson(e as Map<String, dynamic>))
@@ -103,7 +103,8 @@ Sale _$SaleFromJson(Map<String, dynamic> json) => Sale(
           : PaymentType.fromJson(json['payment_type'] as Map<String, dynamic>),
       deliveryType: json['delivery_type'] == null
           ? null
-          : DeliveryType.fromJson(json['delivery_type'] as Map<String, dynamic>),
+          : DeliveryType.fromJson(
+              json['delivery_type'] as Map<String, dynamic>),
       customer: json['customer'] == null
           ? null
           : CustomerResponse.fromJson(json['customer'] as Map<String, dynamic>),
@@ -140,13 +141,13 @@ const _$SaleStatusEnumMap = {
 
 SaleCreate _$SaleCreateFromJson(Map<String, dynamic> json) => SaleCreate(
       date: json['date'] as String,
-      totalQuantity: json['total_quantity'] as int,
+      totalQuantity: (json['total_quantity'] as num).toInt(),
       totalPrice: (json['total_price'] as num).toDouble(),
-      paymentTypeId: json['payment_type_id'] as int,
+      paymentTypeId: (json['payment_type_id'] as num).toInt(),
       paymentReferenceNumber: json['payment_reference_number'] as String?,
-      deliveryTypeId: json['delivery_type_id'] as int,
-      shopId: json['shop_id'] as int,
-      customerId: json['customer_id'] as int,
+      deliveryTypeId: (json['delivery_type_id'] as num).toInt(),
+      shopId: (json['shop_id'] as num).toInt(),
+      customerId: (json['customer_id'] as num).toInt(),
       customerName: json['customer_name'] as String?,
       customerAddress: json['customer_address'] as String?,
       customerMobile: json['customer_mobile'] as String?,
@@ -177,12 +178,12 @@ Map<String, dynamic> _$SaleCreateToJson(SaleCreate instance) =>
 
 SaleItemCreate _$SaleItemCreateFromJson(Map<String, dynamic> json) =>
     SaleItemCreate(
-      productId: json['product_id'] as int,
+      productId: (json['product_id'] as num).toInt(),
       productName: json['product_name'] as String,
       productCategory: json['product_category'] as String,
       size: json['size'] as String,
-      quantityAvailable: json['quantity_available'] as int,
-      quantity: json['quantity'] as int,
+      quantityAvailable: (json['quantity_available'] as num).toInt(),
+      quantity: (json['quantity'] as num).toInt(),
       salePrice: (json['sale_price'] as num).toDouble(),
       totalPrice: (json['total_price'] as num).toDouble(),
     );
@@ -206,13 +207,13 @@ SaleStatusUpdate _$SaleStatusUpdateFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$SaleStatusUpdateToJson(SaleStatusUpdate instance) =>
     <String, dynamic>{
-      'status': _$SaleStatusEnumMap[instance.status],
+      'status': _$SaleStatusEnumMap[instance.status]!,
     };
 
 SaleSummary _$SaleSummaryFromJson(Map<String, dynamic> json) => SaleSummary(
-      totalCount: json['total_count'] as int,
+      totalCount: (json['total_count'] as num).toInt(),
       totalRevenue: (json['total_revenue'] as num).toDouble(),
-      totalItemsSold: json['total_items_sold'] as int,
+      totalItemsSold: (json['total_items_sold'] as num).toInt(),
     );
 
 Map<String, dynamic> _$SaleSummaryToJson(SaleSummary instance) =>
