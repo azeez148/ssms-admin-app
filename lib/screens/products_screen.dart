@@ -183,6 +183,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     super.dispose();
   }
 
+  /// Build full image URL from relative path
+  String? _buildImageUrl(String? imageUrl) {
+    if (imageUrl == null) return null;
+    return '${ApiService.defaultBaseUrl}$imageUrl';
+  }
+
   void _updateAvailableFilters() {
     _availableCategories = _allProducts
         .where((p) => p.category?.name != null)
@@ -460,10 +466,8 @@ Future<void> _loadProducts() async {
           print('Raw product JSON: $json'); // Debug print
           return Product.fromJson({
             ...json,
-            // Match Angular imageUrl logic
-            'image_url': json['image_url'] != null
-                ? '${ApiService.defaultBaseUrl}/${json['image_url']}'
-                : null,
+            // Build full image URL
+            'image_url': _buildImageUrl(json['image_url']),
             // Match Angular defaults
             'offer_id': json['offer_id'],
             'discounted_price': json['discounted_price'] ?? 0,

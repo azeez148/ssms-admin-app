@@ -5,6 +5,7 @@ import 'package:flutter_admin_app/screens/status_update_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_admin_app/models/sale.dart';
 import 'package:flutter_admin_app/services/sale_service.dart';
+import 'package:flutter_admin_app/widgets/shipping_label_widget.dart';
 // Ensure this path matches where you saved the previous file
 // Assuming these exist in your project structure
 
@@ -272,6 +273,10 @@ class _SalesScreenState extends State<SalesScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Print receipt functionality coming soon')),
     );
+  }
+
+  void _printShippingLabel(Sale sale) {
+    ShippingLabelWidget.print(context, sale);
   }
 
   void _exportToExcel() {
@@ -717,10 +722,12 @@ class _SalesScreenState extends State<SalesScreen> {
                   if (value == 'status') _openUpdateStatusDialog(sale);
                   if (value == 'cancel') _cancelSale(sale);
                   if (value == 'print') _printReceipt(sale);
+                  if (value == 'shipping') _printShippingLabel(sale);
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'status', child: Text('Update Status')),
                   const PopupMenuItem(value: 'print', child: Text('Print Receipt')),
+                  const PopupMenuItem(value: 'shipping', child: Text('Print Shipping Label')),
                   const PopupMenuItem(
                     value: 'cancel',
                     child: Text('Cancel Sale', style: TextStyle(color: Colors.red)),
