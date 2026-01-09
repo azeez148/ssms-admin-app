@@ -546,40 +546,58 @@ Future<void> _loadProducts() async {
                 : _filteredProducts.isEmpty && _allProducts.isNotEmpty
                     ? _buildEmptyState()
                     : RefreshIndicator(
-                        onRefresh: () async {
-                          await _loadProducts();
-                        },
-                        child: GridView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            childAspectRatio: childAspectRatio,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                          ),
-                          itemCount: _displayedProducts.length +
-                              (_hasMoreItems ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _displayedProducts.length) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-                            return _buildProductCard(
-                                _displayedProducts[index], isMobile);
-                          },
-                        ),
+                        onRefresh: _loadProducts,
+                        child: isMobile
+                            ? ListView.builder(
+                                controller: _scrollController,
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                itemCount: _displayedProducts.length +
+                                    (_hasMoreItems ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  if (index == _displayedProducts.length) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _buildProductCard(
+                                        _displayedProducts[index], isMobile),
+                                  );
+                                },
+                              )
+                            : GridView.builder(
+                                controller: _scrollController,
+                                padding:
+                                    const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  childAspectRatio: childAspectRatio,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                ),
+                                itemCount: _displayedProducts.length +
+                                    (_hasMoreItems ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  if (index == _displayedProducts.length) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  }
+                                  return _buildProductCard(
+                                      _displayedProducts[index], isMobile);
+                                },
+                              ),
                       ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-  backgroundColor: primaryColor,
-  child: const Icon(Icons.add, color: Colors.white),
-  tooltip: 'Add Product',
-  onPressed: () => _showAddProductDialog(context),
-),
+        backgroundColor: primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
+        tooltip: 'Add Product',
+        onPressed: () => _showAddProductDialog(context),
+      ),
     );
   }
 
@@ -806,153 +824,180 @@ Future<void> _loadProducts() async {
       child: InkWell(
         onTap: () => _showProductDetails(product),
         onLongPress: () => _showProductActions(context, product),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Image Section
-            Expanded(
-              flex: isMobile ? 0 : 5,
-              child: Container(
-                color: Colors.grey[50],
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (product.imageUrl != null)
-                      Image.network(
-                        ApiService.instance.getFullImageUrl(product.imageUrl!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (ctx, _, __) => const Center(
-                            child: Icon(Icons.image_not_supported,
-                                color: Colors.grey, size: 40)),
-                      )
-                    else
-                      const Center(
-                          child: Icon(Icons.image_not_supported,
-                              color: Colors.grey, size: 40)),
+        child: isMobile
+            ? _buildMobileCardLayout(product)
+            : _buildDesktopCardLayout(product),
+      ),
+    );
+  }
 
-                    // Status Badge
-                    if (!product.isActive)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('INACTIVE',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-
-                    // Offer Badge
-                    if (product.offerId != null)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(product.offerId.toString(),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Info Section
-            Expanded(
-              flex: isMobile ? 0 : 4,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        if (product.category?.name != null)
-                          Text(
-                            product.category!.name,
-                            style: TextStyle(
-                                color: Colors.grey[600], fontSize: 11),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (product.offerPrice != null ||
-                                product.discountedPrice != null)
-                              Text(
-                                '₹${product.sellingPrice}',
-                                style: const TextStyle(
-                                  decoration: TextDecoration.lineThrough,
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            Text(
-                              '₹${product.discountedPrice}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (product.sizeMap != null &&
-                            product.sizeMap!.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                                color: surfaceColor,
-                                borderRadius: BorderRadius.circular(4)),
-                            child: Text(
-                              '${product.sizeMap!.length} Sizes',
-                              style: const TextStyle(
-                                  fontSize: 10, fontWeight: FontWeight.w500),
-                            ),
-                          )
-                      ],
-                    )
-                  ],
-                ),
-              ),
-            ),
-            if (isMobile) const SizedBox(height: 12),
-          ],
+  Widget _buildDesktopCardLayout(Product product) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Image Section
+        Expanded(
+          flex: 5,
+          child: _buildCardImage(product),
         ),
+        // Info Section
+        Expanded(
+          flex: 4,
+          child: _buildCardInfo(product),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileCardLayout(Product product) {
+    return Row(
+      children: [
+        // Image Section
+        SizedBox(
+          width: 120,
+          height: 120,
+          child: _buildCardImage(product),
+        ),
+        // Info Section
+        Expanded(
+          child: _buildCardInfo(product),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCardImage(Product product) {
+    return Container(
+      color: Colors.grey[50],
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (product.imageUrl != null)
+            Image.network(
+              ApiService.instance.getFullImageUrl(product.imageUrl!),
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, _, __) => const Center(
+                  child: Icon(Icons.image_not_supported,
+                      color: Colors.grey, size: 40)),
+            )
+          else
+            const Center(
+                child: Icon(Icons.image_not_supported,
+                    color: Colors.grey, size: 40)),
+
+          // Status Badge
+          if (!product.isActive)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('INACTIVE',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+
+          // Offer Badge
+          if (product.offerId != null)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(product.offerId.toString(),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardInfo(Product product) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                product.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              if (product.category?.name != null)
+                Text(
+                  product.category!.name,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (product.offerPrice != null ||
+                      product.discountedPrice != null)
+                    Text(
+                      '₹${product.sellingPrice}',
+                      style: const TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                        color: Colors.grey,
+                        fontSize: 11,
+                      ),
+                    ),
+                  Text(
+                    '₹${product.discountedPrice}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              if (product.sizeMap != null && product.sizeMap!.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(4)),
+                  child: Text(
+                    '${product.sizeMap!.length} Sizes',
+                    style: const TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.w500),
+                  ),
+                )
+            ],
+          )
+        ],
       ),
     );
   }
