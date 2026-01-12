@@ -46,7 +46,7 @@ class _SaleDialogState extends State<SaleDialog> {
   Map<int, String?> productImages = {};
 
   // State Variables
-  String selectedCategory = 'All'; // Changed default to 'All' for UI logic
+  String selectedCategory = 'All';
   PaymentType? selectedPaymentType;
   DeliveryType? selectedDeliveryType;
   DateTime selectedDate = DateTime.now();
@@ -122,9 +122,11 @@ class _SaleDialogState extends State<SaleDialog> {
 
       _updateTotals();
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
-      setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -146,7 +148,8 @@ class _SaleDialogState extends State<SaleDialog> {
           size: 'Free Size',
           quantityAvailable: 1,
           quantity: 1,
-          salePrice: p.discountedPrice?.toDouble() ?? p.sellingPrice.toDouble(),
+          salePrice:
+              p.discountedPrice?.toDouble() ?? p.sellingPrice.toDouble(),
           totalPrice: 0,
         ));
       } else {
@@ -159,8 +162,8 @@ class _SaleDialogState extends State<SaleDialog> {
               size: s.size,
               quantityAvailable: s.quantity,
               quantity: 1,
-              salePrice:
-                  p.discountedPrice?.toDouble() ?? p.sellingPrice.toDouble(),
+              salePrice: p.discountedPrice?.toDouble() ??
+                  p.sellingPrice.toDouble(),
               totalPrice: 0,
             ));
           }
@@ -253,8 +256,8 @@ class _SaleDialogState extends State<SaleDialog> {
 
   void _save() async {
     if (selectedItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cart is empty. Add items to proceed.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cart is empty. Add items to proceed.')));
       return;
     }
     if (customerNameController.text.trim().isEmpty ||
@@ -320,59 +323,122 @@ class _SaleDialogState extends State<SaleDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine screen width for responsiveness (optional tweak)
+    // Determine screen width for responsiveness
     final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 900; // Breakpoint for Mobile/Tablet
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: isMobile
+          ? EdgeInsets.zero // Fullscreen on mobile
+          : const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 0 : 16)),
       backgroundColor: surfaceColor,
       child: isLoading
           ? const SizedBox(
               height: 300, child: Center(child: CircularProgressIndicator()))
-          : SizedBox(
-              width: size.width * 0.95,
-              height: size.height * 0.9,
-              child: Row(
-                children: [
-                  // LEFT SIDE: Product Catalog
-                  Expanded(
-                    flex: 7,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius:
-                            BorderRadius.horizontal(left: Radius.circular(16)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildTopBar(),
-                          const SizedBox(height: 16),
-                          _buildCategorySelector(),
-                          const SizedBox(height: 16),
-                          _buildProductGrid(),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Vertical Divider
-                  Container(width: 1, color: Colors.grey[300]),
-                  // RIGHT SIDE: Cart / Order Ticket
-                  Expanded(
-                    flex: 3,
-                    child: _buildCartSection(),
-                  ),
-                ],
-              ),
-            ),
+          : isMobile
+              ? _buildMobileLayout(size)
+              : _buildDesktopLayout(size),
     );
   }
 
-  // --- Left Side Widgets ---
+  // --- Layouts ---
 
-  Widget _buildTopBar() {
+  Widget _buildDesktopLayout(Size size) {
+    return SizedBox(
+      width: size.width * 0.95,
+      height: size.height * 0.9,
+      child: Row(
+        children: [
+          // LEFT SIDE: Product Catalog
+          Expanded(
+            flex: 7,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.horizontal(left: Radius.circular(16)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDesktopTopBar(),
+                  const SizedBox(height: 16),
+                  _buildCategorySelector(),
+                  const SizedBox(height: 16),
+                  _buildProductGrid(),
+                ],
+              ),
+            ),
+          ),
+          // Vertical Divider
+          Container(width: 1, color: Colors.grey[300]),
+          // RIGHT SIDE: Cart / Order Ticket
+          Expanded(
+            flex: 3,
+            child: _buildCartSection(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(Size size) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: surfaceColor,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          iconTheme: const IconThemeData(color: Colors.black),
+          title: const Text("New Sale", style: TextStyle(color: Colors.black)),
+          leading: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close),
+          ),
+          bottom: TabBar(
+            labelColor: accentColor,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: accentColor,
+            tabs: [
+              const Tab(text: "Products"),
+              Tab(
+                  text: selectedItems.isEmpty
+                      ? "Cart"
+                      : "Cart (${selectedItems.length})"),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Tab 1: Catalog
+            Container(
+              color: Colors.white,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: _buildSearchBar(),
+                  ),
+                  _buildCategorySelector(),
+                  const SizedBox(height: 10),
+                  _buildProductGrid(),
+                ],
+              ),
+            ),
+            // Tab 2: Cart
+            _buildCartSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Components ---
+
+  Widget _buildDesktopTopBar() {
     return Row(
       children: [
         const Icon(Icons.point_of_sale, size: 28, color: Colors.black87),
@@ -386,21 +452,7 @@ class _SaleDialogState extends State<SaleDialog> {
         SizedBox(
           width: 300,
           height: 45,
-          child: TextField(
-            controller: searchController,
-            onChanged: (_) => _applyFilters(),
-            decoration: InputDecoration(
-              hintText: 'Search products...',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              filled: true,
-              fillColor: surfaceColor,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
+          child: _buildSearchBar(),
         ),
         const SizedBox(width: 16),
         IconButton(
@@ -410,10 +462,29 @@ class _SaleDialogState extends State<SaleDialog> {
     );
   }
 
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: searchController,
+      onChanged: (_) => _applyFilters(),
+      decoration: InputDecoration(
+        hintText: 'Search products...',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        filled: true,
+        fillColor: surfaceColor,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategorySelector() {
     return SizedBox(
       height: 40,
       child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         separatorBuilder: (ctx, i) => const SizedBox(width: 10),
@@ -435,7 +506,8 @@ class _SaleDialogState extends State<SaleDialog> {
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
             backgroundColor: surfaceColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             side: BorderSide.none,
           );
         },
@@ -450,7 +522,8 @@ class _SaleDialogState extends State<SaleDialog> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+              Icon(Icons.inventory_2_outlined,
+                  size: 64, color: Colors.grey[400]),
               const SizedBox(height: 10),
               Text("No products found",
                   style: TextStyle(color: Colors.grey[600])),
@@ -460,10 +533,17 @@ class _SaleDialogState extends State<SaleDialog> {
       );
     }
 
+    // Dynamic Grid Count based on width
+    int crossAxisCount = 3;
+    double width = MediaQuery.of(context).size.width;
+    if (width < 600) crossAxisCount = 2; // Mobile
+    if (width > 1200) crossAxisCount = 4; // Large Desktop
+
     return Expanded(
       child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // Adjust based on screen size if needed
+        padding: const EdgeInsets.all(12),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
           childAspectRatio: 0.8,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
@@ -566,7 +646,7 @@ class _SaleDialogState extends State<SaleDialog> {
     );
   }
 
-  // --- Right Side Widgets (Cart) ---
+  // --- Right Side / Cart Widgets ---
 
   Widget _buildCartSection() {
     return Column(
@@ -606,7 +686,8 @@ class _SaleDialogState extends State<SaleDialog> {
                 icon: const Icon(Icons.person_add_alt_1, size: 16),
                 label: const Text("Walk-in"),
                 style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact),
               )
             ],
           ),
@@ -640,7 +721,6 @@ class _SaleDialogState extends State<SaleDialog> {
               ),
             ],
           ),
-          // Optionally expandable address field could go here
         ],
       ),
     );

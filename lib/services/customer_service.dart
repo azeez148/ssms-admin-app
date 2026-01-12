@@ -1,43 +1,78 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_admin_app/services/api_service.dart';
 import '../models/customer.dart';
+// Assuming ApiService is imported from your project core
+// import '../core/api_service.dart'; 
 
 class CustomerService {
-  // Replace with your API logic
-  List<Customer> _customers = [
-    Customer(id: 1, name: 'John Doe', address: '123 Main St', mobile: '1234567890', email: 'john@example.com'),
-    Customer(id: 2, name: 'Jane Smith', address: '456 Oak Ave', mobile: '9876543210', email: 'jane@example.com'),
-  ];
-  int _nextId = 3;
+  // Accessing your project's central Dio instance
+  late final Dio _dio = ApiService.instance.dio;
 
+  /// GET /customers/all
   Future<List<Customer>> getCustomers() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return List<Customer>.from(_customers);
+    try {
+      final response = await _dio.get('/customers/all');
+      
+      // Dio automatically decodes JSON strings into Maps/Lists
+      final List<dynamic> data = response.data;
+      return data.map((json) => Customer.fromJson(json)).toList();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
 
+  /// POST /customers/create
   Future<void> createCustomer(Customer customer) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    _customers.add(customer.copyWith(id: _nextId++));
+    try {
+      await _dio.post(
+        '/customers/create',
+        data: {
+          'name': customer.name,
+          'address': customer.address,
+          'mobile': customer.mobile,
+          'email': customer.email,
+        },
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
 
+  /// PUT /customers/update/{id}
   Future<void> updateCustomer(Customer customer) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    final idx = _customers.indexWhere((c) => c.id == customer.id);
-    if (idx != -1) _customers[idx] = customer;
+    try {
+      await _dio.put(
+        '/customers/update/${customer.id}',
+        data: {
+          'name': customer.name,
+          'address': customer.address,
+          'mobile': customer.mobile,
+          'email': customer.email,
+        },
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
 
+  /// DELETE /customers/delete/{id}
   Future<void> deleteCustomer(int id) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    _customers.removeWhere((c) => c.id == id);
+    try {
+      await _dio.delete('/customers/delete/$id');
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
-}
 
-extension on Customer {
-  Customer copyWith({int? id, String? name, String? address, String? mobile, String? email}) {
-    return Customer(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      address: address ?? this.address,
-      mobile: mobile ?? this.mobile,
-      email: email ?? this.email,
-    );
+  /// Centralized Error Handling for Dio
+  String _handleError(DioException e) {
+    if (e.type == DioExceptionType.connectionTimeout) {
+      return "Connection timed out. Check your internet.";
+    } else if (e.response?.statusCode == 404) {
+      return "Requested resource not found.";
+    } else if (e.response?.statusCode == 500) {
+      return "Internal Server Error. Please try again later.";
+    }
+    return e.message ?? "An unexpected error occurred.";
   }
 }
