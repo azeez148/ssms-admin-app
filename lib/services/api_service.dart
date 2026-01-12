@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 class ApiService {
   final Dio _dio;
-  // static const String defaultBaseUrl = 'https://api.adrenalinesportsstore.in/';
-  static const String defaultBaseUrl = 'http://127.0.0.1:8000/';
+  static const String defaultBaseUrl = 'https://api.adrenalinesportsstore.in/';
+  // static const String defaultBaseUrl = 'http://127.0.0.1:8000/';
 
   // Expose _dio for other services
   Dio get dio => _dio;
