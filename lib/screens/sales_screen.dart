@@ -33,6 +33,7 @@ class _SalesScreenState extends State<SalesScreen> {
   // Pagination
   int currentPage = 1;
   static const int itemsPerPage = 10;
+  int _pendingSalesCount = 0;
 
   // Summary
   SaleSummary? todaysSaleSummary;
@@ -56,11 +57,13 @@ class _SalesScreenState extends State<SalesScreen> {
       });
 
       final sales = await _saleService.getSales();
+      final pendingCount = await _saleService.getPendingSalesCount();
 
       setState(() {
         allSales = sales..sort((a, b) => b.id.compareTo(a.id));
         _applyFilters();
         isLoading = false;
+        _pendingSalesCount = pendingCount;
       });
 
       _calculateTodaysSaleSummary();
@@ -326,11 +329,21 @@ class _SalesScreenState extends State<SalesScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    IconButton(
-                      onPressed: _loadSales,
-                      icon: const Icon(Icons.refresh, color: Colors.white),
-                      tooltip: 'Refresh Data',
-                    )
+                    if (_pendingSalesCount > 0)
+                      Badge(
+                        label: Text('$_pendingSalesCount New'),
+                        child: IconButton(
+                          onPressed: _loadSales,
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          tooltip: 'Refresh Data',
+                        ),
+                      )
+                    else
+                      IconButton(
+                        onPressed: _loadSales,
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        tooltip: 'Refresh Data',
+                      ),
                   ],
                 ),
                 const SizedBox(height: 24),

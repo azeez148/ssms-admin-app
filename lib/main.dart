@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_admin_app/services/sale_service.dart';
 import 'screens/products_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
@@ -34,6 +35,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  int _pendingSalesCount = 0;
+  final SaleService _saleService = SaleService();
 
   final List<Widget> _screens = [
     const DashboardScreen(),
@@ -41,6 +44,26 @@ class _MainScreenState extends State<MainScreen> {
     const SalesScreen(),
     const CustomersScreen(), // Add CustomersScreen
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPendingSalesCount();
+  }
+
+  Future<void> _fetchPendingSalesCount() async {
+    try {
+      final count = await _saleService.getPendingSalesCount();
+      if (mounted) {
+        setState(() {
+          _pendingSalesCount = count;
+        });
+      }
+    } catch (e) {
+      print('Failed to fetch pending sales count: $e');
+      // Optionally show a snackbar or handle the error in UI
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,8 +132,10 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icons.shopping_cart,
             title: 'Sales',
             isSelected: _selectedIndex == 2,
+            pendingCount: _pendingSalesCount,
             onTap: () {
               setState(() => _selectedIndex = 2);
+              _fetchPendingSalesCount();
               Navigator.pop(context);
             },
           ),
@@ -165,20 +190,32 @@ class _DrawerItem extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final bool isSelected;
+  final int? pendingCount;
 
-  const _DrawerItem({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.isSelected = false,
-    Key? key,
-  }) : super(key: key);
+  const _DrawerItem(
+      {required this.icon,
+      required this.title,
+      required this.onTap,
+      this.isSelected = false,
+      this.pendingCount,
+      Key? key})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon),
-      title: Text(title),
+      title: Row(
+        children: [
+          Text(title),
+          if (pendingCount != null && pendingCount! > 0) ...[
+            const SizedBox(width: 8),
+            Badge(
+              label: Text('$pendingCount'),
+            ),
+          ]
+        ],
+      ),
       selected: isSelected,
       selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
       onTap: onTap,
