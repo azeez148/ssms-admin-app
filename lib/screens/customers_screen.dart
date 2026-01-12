@@ -11,13 +11,19 @@ class CustomersScreen extends StatefulWidget {
 
 class _CustomersScreenState extends State<CustomersScreen> {
   final CustomerService _customerService = CustomerService();
-  List<Customer> customers = [];
+
   List<Customer> allCustomers = [];
-  int page = 1;
-  String filterValue = '';
-  final int itemsPerPage = 10;
-  bool isLoading = false;
+  List<Customer> filteredCustomers = [];
+
+  bool isLoading = true;
   String? errorMessage;
+
+  // Filters
+  String searchFilter = '';
+
+  // Pagination (SAME AS SALES)
+  int currentPage = 1;
+  static const int itemsPerPage = 10;
 
   // Styling
   final Color primaryColor = const Color(0xFF2A2D3E);
@@ -26,19 +32,21 @@ class _CustomersScreenState extends State<CustomersScreen> {
   @override
   void initState() {
     super.initState();
-    loadCustomers();
+    _loadCustomers();
   }
 
-  void loadCustomers() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+  Future<void> _loadCustomers() async {
     try {
-      final data = await _customerService.getCustomers();
       setState(() {
-        allCustomers = data;
-        applyFilter();
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final customers = await _customerService.getCustomers();
+
+      setState(() {
+        allCustomers = customers..sort((a, b) => b.id.compareTo(a.id));
+        _applyFilters();
         isLoading = false;
       });
     } catch (e) {
@@ -49,60 +57,75 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }
   }
 
-  void applyFilter([String? value]) {
-    if (value != null) filterValue = value.toLowerCase();
-    setState(() {
-      customers = allCustomers
-          .where((c) => c.name.toLowerCase().contains(filterValue))
+  void _applyFilters() {
+    List<Customer> filtered = List.from(allCustomers);
+
+    if (searchFilter.isNotEmpty) {
+      filtered = filtered
+          .where((c) =>
+              c.name.toLowerCase().contains(searchFilter.toLowerCase()))
           .toList();
-      page = 1;
+    }
+
+    setState(() {
+      filteredCustomers = filtered;
+      currentPage = 1;
     });
   }
 
-  void openDialog([Customer? customer]) async {
+  void _openDialog([Customer? customer]) async {
     final result = await showDialog<Customer>(
       context: context,
       builder: (context) => CustomerDialog(customer: customer),
     );
+
     if (result != null) {
-      if (customer != null) {
-        await _customerService.updateCustomer(result);
-      } else {
+      if (customer == null) {
         await _customerService.createCustomer(result);
+      } else {
+        await _customerService.updateCustomer(result);
       }
-      loadCustomers();
+      _loadCustomers();
     }
   }
 
-  void deleteCustomer(int id) async {
+  void _deleteCustomer(Customer customer) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Delete Customer'),
-        content: const Text('Are you sure you want to delete this customer?'),
+        content: const Text('Are you sure?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
         ],
       ),
     );
+
     if (confirm == true) {
-      await _customerService.deleteCustomer(id);
-      loadCustomers();
+      await _customerService.deleteCustomer(customer.id);
+      _loadCustomers();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pagedCustomers = customers.skip((page - 1) * itemsPerPage).take(itemsPerPage).toList();
-    final totalPages = (customers.length / itemsPerPage).ceil();
     final size = MediaQuery.of(context).size;
     final isMobile = size.width < 800;
+
+    // Pagination logic (same as Sales)
+    final totalPages = (filteredCustomers.length / itemsPerPage).ceil();
+    final startIndex = (currentPage - 1) * itemsPerPage;
+    final endIndex =
+        (startIndex + itemsPerPage).clamp(0, filteredCustomers.length);
+    final paginatedCustomers =
+        filteredCustomers.sublist(startIndex, endIndex);
+
     return Scaffold(
       backgroundColor: surfaceColor,
       body: Column(
         children: [
-          // 1. Header
+          // Header
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -115,23 +138,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Customers',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                const Text('Customers',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold)),
                 IconButton(
-                  onPressed: loadCustomers,
+                  onPressed: _loadCustomers,
                   icon: const Icon(Icons.refresh, color: Colors.white),
-                  tooltip: 'Refresh Data',
                 )
               ],
             ),
           ),
-          // 2. Filter/Action Bar
+
+          // Filters
           Transform.translate(
             offset: const Offset(0, -25),
             child: Container(
@@ -150,179 +170,102 @@ class _CustomersScreenState extends State<CustomersScreen> {
               ),
               child: isMobile
                   ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildSearchField(),
-                        const SizedBox(height: 12),
+                        _buildSearch(),
+                        const SizedBox(height: 10),
                         ElevatedButton.icon(
-                          onPressed: () => openDialog(),
+                          onPressed: () => _openDialog(),
                           icon: const Icon(Icons.add),
                           label: const Text('Add Customer'),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.download),
-                          label: const Text('Export to Excel'),
                         ),
                       ],
                     )
                   : Row(
                       children: [
-                        Expanded(flex: 2, child: _buildSearchField()),
+                        Expanded(child: _buildSearch()),
                         const SizedBox(width: 16),
                         ElevatedButton.icon(
-                          onPressed: () => openDialog(),
+                          onPressed: () => _openDialog(),
                           icon: const Icon(Icons.add),
                           label: const Text('Add Customer'),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.download),
-                          label: const Text('Export to Excel'),
                         ),
                       ],
                     ),
             ),
           ),
-          // 3. Table/List
+
+          // List
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : errorMessage != null
                     ? Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red)))
-                    : customers.isEmpty
-                        ? _buildEmptyState()
+                    : filteredCustomers.isEmpty
+                        ? _buildEmpty()
                         : Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: isMobile
-                                ? ListView.builder(
-                                    itemCount: pagedCustomers.length,
-                                    itemBuilder: (context, idx) => _buildMobileCustomerCard(pagedCustomers[idx]),
-                                  )
-                                : SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: DataTable(
-                                      headingRowColor: MaterialStateProperty.all(Colors.grey[50]),
-                                      dataRowHeight: 60,
-                                      columns: const [
-                                        DataColumn(label: Text('ID')),
-                                        DataColumn(label: Text('Name')),
-                                        DataColumn(label: Text('Address')),
-                                        DataColumn(label: Text('Mobile')),
-                                        DataColumn(label: Text('Email')),
-                                        DataColumn(label: Text('Actions')),
-                                      ],
-                                      rows: pagedCustomers.map((customer) => DataRow(cells: [
-                                        DataCell(Text(customer.id.toString())),
-                                        DataCell(Text(customer.name)),
-                                        DataCell(Text(customer.address ?? '')),
-                                        DataCell(Text(customer.mobile)),
-                                        DataCell(Text(customer.email ?? '')),
-                                        DataCell(Row(
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit),
-                                              onPressed: () => openDialog(customer),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete),
-                                              onPressed: () => deleteCustomer(customer.id),
-                                            ),
-                                          ],
-                                        )),
-                                      ])).toList(),
-                                    ),
-                                  ),
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: isMobile
+                                      ? ListView.builder(
+                                          itemCount: paginatedCustomers.length,
+                                          itemBuilder: (_, i) =>
+                                              _buildMobileCard(paginatedCustomers[i]),
+                                        )
+                                      : SingleChildScrollView(
+                                          child: DataTable(
+                                            columns: const [
+                                              DataColumn(label: Text('ID')),
+                                              DataColumn(label: Text('Name')),
+                                              DataColumn(label: Text('Mobile')),
+                                              DataColumn(label: Text('Email')),
+                                              DataColumn(label: Text('Actions')),
+                                            ],
+                                            rows: paginatedCustomers.map((c) {
+                                              return DataRow(cells: [
+                                                DataCell(Text(c.id.toString())),
+                                                DataCell(Text(c.name)),
+                                                DataCell(Text(c.mobile)),
+                                                DataCell(Text(c.email ?? '')),
+                                                DataCell(Row(
+                                                  children: [
+                                                    IconButton(
+                                                        icon: const Icon(Icons.edit),
+                                                        onPressed: () => _openDialog(c)),
+                                                    IconButton(
+                                                        icon: const Icon(Icons.delete),
+                                                        onPressed: () => _deleteCustomer(c)),
+                                                  ],
+                                                )),
+                                              ]);
+                                            }).toList(),
+                                          ),
+                                        ),
+                                ),
+                                if (totalPages > 1)
+                                  _buildPaginationControls(totalPages),
+                              ],
+                            ),
                           ),
           ),
-          if (customers.isNotEmpty && totalPages > 1)
-            _buildPaginationControls(totalPages),
         ],
       ),
     );
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearch() {
     return TextField(
+      onChanged: (val) {
+        searchFilter = val;
+        _applyFilters();
+      },
       decoration: InputDecoration(
-        hintText: 'Search by name',
-        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+        hintText: 'Search customer',
+        prefixIcon: const Icon(Icons.search),
         filled: true,
         fillColor: surfaceColor,
-        contentPadding: EdgeInsets.zero,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none),
-      ),
-      onChanged: applyFilter,
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            "No customers found",
-            style: TextStyle(fontSize: 18, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileCustomerCard(Customer customer) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 5,
-              offset: const Offset(0, 2))
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('#${customer.id}',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primaryColor,
-                      fontSize: 16)),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => openDialog(customer),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => deleteCustomer(customer.id),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          Text(customer.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-          if (customer.address != null && customer.address!.isNotEmpty)
-            Text(customer.address!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          Text(customer.mobile, style: const TextStyle(fontSize: 13)),
-          if (customer.email != null && customer.email!.isNotEmpty)
-            Text(customer.email!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        ],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
     );
   }
@@ -334,19 +277,40 @@ class _CustomersScreenState extends State<CustomersScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            onPressed: page > 1 ? () => setState(() => page--) : null,
+            onPressed: currentPage > 1 ? () => setState(() => currentPage--) : null,
             icon: const Icon(Icons.chevron_left),
           ),
-          Text("Page $page of $totalPages"),
+          Text("Page $currentPage of $totalPages"),
           IconButton(
-            onPressed: page < totalPages ? () => setState(() => page++) : null,
+            onPressed: currentPage < totalPages ? () => setState(() => currentPage++) : null,
             icon: const Icon(Icons.chevron_right),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildEmpty() {
+    return const Center(child: Text("No customers found"));
+  }
+
+  Widget _buildMobileCard(Customer c) {
+    return Card(
+      child: ListTile(
+        title: Text(c.name),
+        subtitle: Text(c.mobile),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(icon: const Icon(Icons.edit), onPressed: () => _openDialog(c)),
+            IconButton(icon: const Icon(Icons.delete), onPressed: () => _deleteCustomer(c)),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
 
 class CustomerDialog extends StatefulWidget {
   final Customer? customer;
