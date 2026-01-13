@@ -32,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _totalStockValue = 0;
   double _projectedSaleValue = 0;
   double _projectedProfitValue = 0;
+  int _totalPendingSales = 0;
 
   // Today's Summaries
   final Map<String, dynamic> _todayCompleted = {
@@ -72,12 +73,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final dashboard = Dashboard.fromJson(dashboardJson);
       final sales = await _saleService.getSales();
       final products = await _productService.getProducts();
+      final pendingCount = await _saleService.getPendingSalesCount();
 
       if (mounted) {
         setState(() {
           _dashboardData = dashboard;
           _allSales = sales;
           _allProducts = products;
+          _totalPendingSales = pendingCount;
 
           _calculateStockValues();
           _calculateTodaysMetrics();
@@ -410,9 +413,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTodaySummaryGrid(bool isMobile) {
+    final pendingSummary = {
+      'count': _totalPendingSales,
+      'revenue': _todayPending['revenue'],
+      'items': _todayPending['items'],
+    };
     List<Widget> cards = [
       _buildDetailSummaryCard("Completed", _todayCompleted, Colors.teal),
-      _buildDetailSummaryCard("Pending", _todayPending, Colors.orange),
+      _buildDetailSummaryCard(
+          "Pending", pendingSummary, Colors.orange, "All Pending Orders"),
       _buildDetailSummaryCard("Shipped", _todayShipped, Colors.blue),
     ];
 
@@ -434,7 +443,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDetailSummaryCard(
-      String title, Map<String, dynamic> data, Color color) {
+      String title, Map<String, dynamic> data, Color color,
+      [String? customTitle]) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -456,7 +466,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
             ),
-            child: Text("Today's Sales — $title",
+            child: Text(customTitle ?? "Today's Sales — $title",
                 style: TextStyle(
                     color: color, fontWeight: FontWeight.bold, fontSize: 13)),
           ),

@@ -19,6 +19,18 @@ class SaleService {
     }
   }
 
+  // Get count of pending sales
+  Future<int> getPendingSalesCount() async {
+    try {
+      final sales = await getSales();
+      return sales.where((sale) => sale.status == SaleStatus.pending).length;
+    } catch (e) {
+      // It might be better to return 0 or rethrow depending on desired UX
+      print('Error fetching pending sales count: $e');
+      return 0;
+    }
+  }
+
   // Get recent sales
   Future<List<Sale>> getRecentSales() async {
     try {
