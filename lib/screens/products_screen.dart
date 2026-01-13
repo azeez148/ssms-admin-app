@@ -77,6 +77,14 @@ class ProductFilterOptions {
   }
 }
 
+
+class CustomSizeRow {
+  final TextEditingController sizeCtrl;
+  final TextEditingController qtyCtrl;
+
+  CustomSizeRow(this.sizeCtrl, this.qtyCtrl);
+}
+
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
 
@@ -966,16 +974,96 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  // --- Helpers added to make file compilable ---
 
-  void _showProductDetails(Product product) {
-    // Implement navigation to details
-    debugPrint('Navigate to details for ${product.name}');
-  }
 
-  void _showProductActions(BuildContext context, Product product) {
-    // Implement actions (edit/delete)
-    debugPrint('Show actions for ${product.name}');
+Future<void> _showProductActions(
+      BuildContext context, Product product) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const SizedBox(height: 12),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.edit, color: Colors.blue),
+                ),
+                title: const Text('Update Details'),
+                onTap: () => Navigator.pop(context, 'update'),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.image, color: Colors.purple),
+                ),
+                title: const Text('Add/Update Image'),
+                onTap: () => Navigator.pop(context, 'image'),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.inventory, color: Colors.orange),
+                ),
+                title: const Text('Update Stock/Quantity'),
+                onTap: () => Navigator.pop(context, 'quantity'),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: const FaIcon(FontAwesomeIcons.whatsapp,
+                      color: Colors.green),
+                ),
+                title: const Text('Open WhatsApp Group'),
+                onTap: () => Navigator.pop(context, 'whatsapp'),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case 'update':
+        await _showUpdateProductDialog(context, product);
+        break;
+      case 'image':
+        await _showImagePickerDialog(context, product);
+        break;
+      case 'quantity':
+        await _showQuantityUpdateDialog(context, product);
+        break;
+      case 'whatsapp':
+        await _openWhatsAppGroup(context);
+        break;
+    }
   }
 
   void _showAddProductDialog(BuildContext context) {
@@ -1030,5 +1118,444 @@ class _ProductsScreenState extends State<ProductsScreen> {
       ));
     }
     return chips;
+  }
+
+  Future<void> _showUpdateProductDialog(
+      BuildContext context, Product product) async {
+    final nameController = TextEditingController(text: product.name);
+    final descController = TextEditingController(text: product.description);
+    final unitPriceController =
+        TextEditingController(text: product.unitPrice.toString());
+    final sellingPriceController =
+        TextEditingController(text: product.sellingPrice.toString());
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Product'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name')),
+              TextField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: 'Description')),
+              TextField(
+                  controller: unitPriceController,
+                  decoration: const InputDecoration(labelText: 'Unit Price'),
+                  keyboardType: TextInputType.number),
+              TextField(
+                  controller: sellingPriceController,
+                  decoration: const InputDecoration(labelText: 'Selling Price'),
+                  keyboardType: TextInputType.number),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                // Implement update logic here using ApiService
+                // await ApiService.instance.updateProduct(...)
+                Navigator.pop(context);
+                _loadProducts(); // Refresh
+              } catch (e) {
+                // Handle error
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showImagePickerDialog(
+      BuildContext context, Product product) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Image Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.camera),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(context, 'camera'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(context, 'gallery'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (result != null) {
+      try {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: result == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        );
+
+        if (image != null) {
+          // For web, we need to use readAsBytes() instead of file path
+          // For mobile, we can use the file path directly
+          if (image.path.startsWith('blob:')) {
+            // Web platform - use bytes
+            final bytes = await image.readAsBytes();
+            await ApiService.instance.uploadProductImageBytes(
+                context, product.id, bytes, image.name);
+          } else {
+            // Mobile platform - use file path
+            await ApiService.instance
+                .uploadProductImage(context, product.id, image.path);
+          }
+
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image uploaded successfully')),
+          );
+          _loadProducts(); // Refresh the list
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+      }
+    }
+  }
+
+  final Map<String, List<String>> sizeConfig = {
+    'Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Five Sleeve Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Full Sleeve Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Kids Jersey': ['20', '22', '24', '26', '28', '30', '32', '34'],
+    'First Copy Jersey': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Tshirt': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Dotknit Shorts - Embroidery': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Dotknit Shorts - Submiation': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Dotknit Shorts - Plain': ['S', 'M', 'L', 'XL', 'XXL'],
+    'PP Shorts - Plain': ['S', 'M', 'L', 'XL', 'XXL'],
+    'PP Shorts - Embroidery': ['S', 'M', 'L', 'XL', 'XXL'],
+    'FC Shorts': ['S', 'M', 'L', 'XL', 'XXL'],
+    'NS Shorts': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Sleeve Less - D/N': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Sleeve Less - Saleena': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Sleeve Less - Other': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Sleeve Less - NS': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Track Pants - Imp': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Track Pants - Normal': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Boot-Adult': [
+      '5',
+      '5.5',
+      '6',
+      '6.5',
+      '7',
+      '7.5',
+      '8',
+      '8.5',
+      '9',
+      '9.5',
+      '10',
+      '10.5',
+      '11'
+    ],
+    'Boot-Kids': ['-13', '-12', '-11', '1', '2', '3', '4'],
+    'Boot-Imp': [
+      '5',
+      '5.5',
+      '6',
+      '6.5',
+      '7',
+      '7.5',
+      '8',
+      '8.5',
+      '9',
+      '9.5',
+      '10',
+      '10.5',
+      '11'
+    ],
+    'Shorts-Kids': ['20', '22', '24', '26', '28', '30', '32', '34'],
+    'Football': ['3', '4', '5'],
+    'Cricket Ball': ['Standard'],
+    'Shuttle Bat': ['Standard'],
+    'Shuttle Cock': ['Standard'],
+    'Foot Pad': ['Free Size'],
+    'Foot sleeve': ['Free Size'],
+    'Socks-Full': ['Free Size'],
+    'Socks-3/4': ['Free Size'],
+    'Socks-Half': ['Free Size'],
+    'Socks-Ankle': ['Free Size'],
+    'Hand Sleeve': ['Free Size'],
+    'GK Glove': [
+      '5.5',
+      '6',
+      '6.5',
+      '7',
+      '7.5',
+      '8',
+      '8.5',
+      '9',
+      '9.5',
+      '10',
+      '10.5',
+      '11'
+    ],
+    'Trophy': ['Small', 'Medium', 'Large'],
+  };
+
+  Future<void> _showQuantityUpdateDialog(
+    BuildContext context, Product product) async {
+
+  final Map<String, TextEditingController> standardControllers = {};
+  final List<CustomSizeRow> customRows = [];
+
+  final categoryName = product.category?.name ?? '';
+  final standardSizes = sizeConfig[categoryName] ?? [];
+  final standardSizeSet = standardSizes.toSet();
+
+  // Init standard sizes
+  for (final size in standardSizes) {
+    final existing = product.sizeMap?.firstWhere(
+      (s) => s.size == size,
+      orElse: () => ProductSize(size: size, quantity: 0),
+    );
+
+    standardControllers[size] =
+        TextEditingController(text: existing?.quantity.toString() ?? '0');
+  }
+
+  // Init custom sizes
+  for (final size in product.sizeMap ?? []) {
+    if (!standardSizeSet.contains(size.size)) {
+      customRows.add(
+        CustomSizeRow(
+          TextEditingController(text: size.size),
+          TextEditingController(text: size.quantity.toString()),
+        ),
+      );
+    }
+  }
+
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: Text('Update Quantity - ${product.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Standard Sizes', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: standardControllers.entries.map((e) {
+                  return SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: e.value,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: e.key,
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 20),
+              const Divider(),
+              const Text('Custom Sizes', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+
+              ...List.generate(customRows.length, (index) {
+                final row = customRows[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: row.sizeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Size',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: row.qtyCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Qty',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            row.sizeCtrl.dispose();
+                            row.qtyCtrl.dispose();
+                            customRows.removeAt(index);
+                          });
+                        },
+                      )
+                    ],
+                  ),
+                );
+              }),
+
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    customRows.add(
+                      CustomSizeRow(
+                        TextEditingController(),
+                        TextEditingController(text: '0'),
+                      ),
+                    );
+                  });
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add Custom Size'),
+              )
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+        ],
+      ),
+    ),
+  );
+
+  if (result == true) {
+    final Map<String, int> updatedSizeMap = {};
+
+    // Standard sizes
+    standardControllers.forEach((size, ctrl) {
+      updatedSizeMap[size] = int.tryParse(ctrl.text) ?? 0;
+    });
+
+    // Custom sizes
+    for (final row in customRows) {
+      final name = row.sizeCtrl.text.trim();
+      if (name.isNotEmpty) {
+        updatedSizeMap[name] = int.tryParse(row.qtyCtrl.text) ?? 0;
+      }
+    }
+
+    await ApiService.instance.updateSizeMap(
+      context,
+      product.id,
+      updatedSizeMap,
+    );
+
+    _loadProducts();
+  }
+
+  // Cleanup
+  for (final c in standardControllers.values) {
+    c.dispose();
+  }
+  for (final r in customRows) {
+    r.sizeCtrl.dispose();
+    r.qtyCtrl.dispose();
+  }
+}
+
+
+  Future<void> _openWhatsAppGroup(BuildContext context) async {
+    const whatsappUrl = 'YOUR_WHATSAPP_GROUP_URL'; // Replace with actual URL
+    final uri = Uri.parse(whatsappUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp')),
+      );
+    }
+  }
+
+  void _showProductDetails(Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(product.name),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (product.imageUrl != null)
+                Center(
+                  child: SizedBox(
+                    height: 200,
+                    child: Image.network(
+                      ApiService.instance.getFullImageUrl(product.imageUrl!),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _DetailRow('ID', product.id.toString()),
+              _DetailRow('Category', product.category?.name ?? 'N/A'),
+              _DetailRow('Unit Price', '₹${product.unitPrice}'),
+              _DetailRow('Selling Price', '₹${product.sellingPrice}'),
+              if (product.discountedPrice != null)
+                _DetailRow('Discounted', '₹${product.discountedPrice}'),
+              _DetailRow('Status', product.isActive ? 'Active' : 'Inactive'),
+              const Divider(),
+              const Text('Stock:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              if (product.sizeMap != null)
+                ...product.sizeMap!.map((s) => Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Size ${s.size}'),
+                          Text('${s.quantity} units'),
+                        ],
+                      ),
+                    )),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
