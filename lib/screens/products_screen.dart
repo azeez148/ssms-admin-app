@@ -27,6 +27,8 @@ class ProductFilterOptions {
   final bool? isActive;
   final bool? canListed;
   final String? sizeFilter;
+  final bool? hasOffer; // New
+  final bool? inStock; // New
 
   const ProductFilterOptions({
     this.searchQuery,
@@ -35,48 +37,49 @@ class ProductFilterOptions {
     this.isActive,
     this.canListed,
     this.sizeFilter,
+    this.hasOffer,
+    this.inStock,
   });
 
   bool matches(Product product) {
     if (searchQuery != null && searchQuery!.isNotEmpty) {
       final query = searchQuery!.toLowerCase();
-      if (!product.name.toLowerCase().contains(query)) {
-        return false;
-      }
+      if (!product.name.toLowerCase().contains(query)) return false;
     }
 
-    if (categoryName != null && (product.category?.name != categoryName)) {
+    if (categoryName != null && (product.category?.name != categoryName))
       return false;
-    }
 
     if (hasImage != null) {
       final hasProductImage =
           product.imageUrl != null && product.imageUrl!.isNotEmpty;
-      if (hasImage != hasProductImage) {
-        return false;
-      }
+      if (hasImage != hasProductImage) return false;
     }
 
-    if (isActive != null && product.isActive != isActive) {
-      return false;
+    if (isActive != null && product.isActive != isActive) return false;
+
+    // New Offer Filter Logic (matches Angular p.offerId)
+    if (hasOffer != null) {
+      final productHasOffer = product.offerId != null;
+      if (hasOffer != productHasOffer) return false;
     }
 
-    if (canListed != null && product.canListed != canListed) {
-      return false;
+    // New Stock Status Logic (matches Angular isProductInStock)
+    if (inStock != null) {
+      final productInStock =
+          product.sizeMap?.any((s) => s.quantity > 0) ?? false;
+      if (inStock != productInStock) return false;
     }
 
     if (sizeFilter != null && product.sizeMap != null) {
       final hasSize = product.sizeMap!.any((s) =>
           s.size.toLowerCase() == sizeFilter!.toLowerCase() && s.quantity > 0);
-      if (!hasSize) {
-        return false;
-      }
+      if (!hasSize) return false;
     }
 
     return true;
   }
 }
-
 
 class CustomSizeRow {
   final TextEditingController sizeCtrl;
@@ -240,6 +243,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     bool? isActive,
     bool? canListed,
     String? sizeFilter,
+    bool? hasOffer,
+    bool? inStock,
   }) {
     setState(() {
       _filterOptions = ProductFilterOptions(
@@ -249,6 +254,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
         isActive: isActive,
         canListed: canListed,
         sizeFilter: sizeFilter,
+        hasOffer: hasOffer,
+        inStock: inStock,
       );
       _applyFiltersAndSort();
     });
@@ -267,6 +274,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     bool? isActive = _filterOptions.isActive;
     bool? canListed = _filterOptions.canListed;
     String? selectedSize = _filterOptions.sizeFilter;
+    bool? hasOffer = _filterOptions.hasOffer;
+    bool? inStock = _filterOptions.inStock;
 
     await showDialog(
       context: context,
@@ -298,10 +307,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         value: null,
                         child: Text('All Categories'),
                       ),
-                      ..._availableCategories.map((category) => DropdownMenuItem(
-                            value: category,
-                            child: Text(category),
-                          )),
+                      ..._availableCategories
+                          .map((category) => DropdownMenuItem(
+                                value: category,
+                                child: Text(category),
+                              )),
                     ],
                     onChanged: (value) {
                       setDialogState(() => selectedCategory = value);
@@ -373,20 +383,60 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     },
                   ),
                 ],
+
+                // Offer Status
+                const Text('Offer Status',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                SegmentedButton<bool?>(
+                  segments: const [
+                    ButtonSegment(value: null, label: Text('All')),
+                    ButtonSegment(value: true, label: Text('In Offer')),
+                    ButtonSegment(value: false, label: Text('No Offer')),
+                  ],
+                  selected: {hasOffer},
+                  onSelectionChanged: (Set<bool?> newValue) =>
+                      setDialogState(() => hasOffer = newValue.first),
+                ),
+                const SizedBox(height: 16),
+
+// Stock Status
+                const Text('Stock Status',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                SegmentedButton<bool?>(
+                  segments: const [
+                    ButtonSegment(value: null, label: Text('All')),
+                    ButtonSegment(value: true, label: Text('In Stock')),
+                    ButtonSegment(value: false, label: Text('Out of Stock')),
+                  ],
+                  selected: {inStock},
+                  onSelectionChanged: (Set<bool?> newValue) =>
+                      setDialogState(() => inStock = newValue.first),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () {
+                _updateFilters(
+                  categoryName: selectedCategory,
+                  hasImage: hasImage,
+                  isActive: isActive,
+                  canListed: canListed,
+                  sizeFilter: selectedSize,
+                  hasOffer: hasOffer, // Pass new value
+                  inStock: inStock, // Pass new value
+                );
                 Navigator.of(context).pop();
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white),
+                  backgroundColor: primaryColor, foregroundColor: Colors.white),
               onPressed: () {
                 _updateFilters(
                   categoryName: selectedCategory,
@@ -465,21 +515,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
       final List<dynamic> response =
           await ApiService.instance.getProducts(context);
 
-      final products = response
-          .whereType<Map<String, dynamic>>()
-          .map((json) {
-            // print('Raw product JSON: $json'); // Debug print
-            return Product.fromJson({
-              ...json,
-              // Build full image URL
-              'image_url': _buildImageUrl(json['image_url']),
-              // Match Angular defaults
-              'offer_id': json['offer_id'],
-              'discounted_price': json['discounted_price'] ?? 0,
-              'offer_price': json['offer_price'] ?? 0,
-            });
-          })
-          .toList();
+      final products = response.whereType<Map<String, dynamic>>().map((json) {
+        // print('Raw product JSON: $json'); // Debug print
+        return Product.fromJson({
+          ...json,
+          // Build full image URL
+          'image_url': _buildImageUrl(json['image_url']),
+          // Match Angular defaults
+          'offer_id': json['offer_id'],
+          'discounted_price': json['discounted_price'] ?? 0,
+          'offer_price': json['offer_price'] ?? 0,
+        });
+      }).toList();
 
       if (!mounted) return;
 
@@ -949,9 +996,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               constraints: const BoxConstraints(maxWidth: 50),
                               child: Text(
                                 // FIX: Completed cut-off code
-                                product.sizeMap!
-                                    .map((e) => e.size)
-                                    .join(', '),
+                                product.sizeMap!.map((e) => e.size).join(', '),
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: primaryColor,
@@ -974,9 +1019,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-
-
-Future<void> _showProductActions(
+  Future<void> _showProductActions(
       BuildContext context, Product product) async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -1322,174 +1365,175 @@ Future<void> _showProductActions(
   };
 
   Future<void> _showQuantityUpdateDialog(
-    BuildContext context, Product product) async {
+      BuildContext context, Product product) async {
+    final Map<String, TextEditingController> standardControllers = {};
+    final List<CustomSizeRow> customRows = [];
 
-  final Map<String, TextEditingController> standardControllers = {};
-  final List<CustomSizeRow> customRows = [];
+    final categoryName = product.category?.name ?? '';
+    final standardSizes = sizeConfig[categoryName] ?? [];
+    final standardSizeSet = standardSizes.toSet();
 
-  final categoryName = product.category?.name ?? '';
-  final standardSizes = sizeConfig[categoryName] ?? [];
-  final standardSizeSet = standardSizes.toSet();
-
-  // Init standard sizes
-  for (final size in standardSizes) {
-    final existing = product.sizeMap?.firstWhere(
-      (s) => s.size == size,
-      orElse: () => ProductSize(size: size, quantity: 0),
-    );
-
-    standardControllers[size] =
-        TextEditingController(text: existing?.quantity.toString() ?? '0');
-  }
-
-  // Init custom sizes
-  for (final size in product.sizeMap ?? []) {
-    if (!standardSizeSet.contains(size.size)) {
-      customRows.add(
-        CustomSizeRow(
-          TextEditingController(text: size.size),
-          TextEditingController(text: size.quantity.toString()),
-        ),
+    // Init standard sizes
+    for (final size in standardSizes) {
+      final existing = product.sizeMap?.firstWhere(
+        (s) => s.size == size,
+        orElse: () => ProductSize(size: size, quantity: 0),
       );
+
+      standardControllers[size] =
+          TextEditingController(text: existing?.quantity.toString() ?? '0');
     }
-  }
 
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: Text('Update Quantity - ${product.name}'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Standard Sizes', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: standardControllers.entries.map((e) {
-                  return SizedBox(
-                    width: 120,
-                    child: TextField(
-                      controller: e.value,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: e.key,
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 20),
-              const Divider(),
-              const Text('Custom Sizes', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-
-              ...List.generate(customRows.length, (index) {
-                final row = customRows[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: row.sizeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Size',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: row.qtyCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Qty',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle, color: Colors.red),
-                        onPressed: () {
-                          setState(() {
-                            row.sizeCtrl.dispose();
-                            row.qtyCtrl.dispose();
-                            customRows.removeAt(index);
-                          });
-                        },
-                      )
-                    ],
-                  ),
-                );
-              }),
-
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    customRows.add(
-                      CustomSizeRow(
-                        TextEditingController(),
-                        TextEditingController(text: '0'),
-                      ),
-                    );
-                  });
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add Custom Size'),
-              )
-            ],
+    // Init custom sizes
+    for (final size in product.sizeMap ?? []) {
+      if (!standardSizeSet.contains(size.size)) {
+        customRows.add(
+          CustomSizeRow(
+            TextEditingController(text: size.size),
+            TextEditingController(text: size.quantity.toString()),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
-        ],
-      ),
-    ),
-  );
-
-  if (result == true) {
-    final Map<String, int> updatedSizeMap = {};
-
-    // Standard sizes
-    standardControllers.forEach((size, ctrl) {
-      updatedSizeMap[size] = int.tryParse(ctrl.text) ?? 0;
-    });
-
-    // Custom sizes
-    for (final row in customRows) {
-      final name = row.sizeCtrl.text.trim();
-      if (name.isNotEmpty) {
-        updatedSizeMap[name] = int.tryParse(row.qtyCtrl.text) ?? 0;
+        );
       }
     }
 
-    await ApiService.instance.updateSizeMap(
-      context,
-      product.id,
-      updatedSizeMap,
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Update Quantity - ${product.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Standard Sizes',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: standardControllers.entries.map((e) {
+                    return SizedBox(
+                      width: 120,
+                      child: TextField(
+                        controller: e.value,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: e.key,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const Text('Custom Sizes',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                ...List.generate(customRows.length, (index) {
+                  final row = customRows[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: row.sizeCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Size',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: row.qtyCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Qty',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle,
+                              color: Colors.red),
+                          onPressed: () {
+                            setState(() {
+                              row.sizeCtrl.dispose();
+                              row.qtyCtrl.dispose();
+                              customRows.removeAt(index);
+                            });
+                          },
+                        )
+                      ],
+                    ),
+                  );
+                }),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      customRows.add(
+                        CustomSizeRow(
+                          TextEditingController(),
+                          TextEditingController(text: '0'),
+                        ),
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Custom Size'),
+                )
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Save')),
+          ],
+        ),
+      ),
     );
 
-    _loadProducts();
-  }
+    if (result == true) {
+      final Map<String, int> updatedSizeMap = {};
 
-  // Cleanup
-  for (final c in standardControllers.values) {
-    c.dispose();
-  }
-  for (final r in customRows) {
-    r.sizeCtrl.dispose();
-    r.qtyCtrl.dispose();
-  }
-}
+      // Standard sizes
+      standardControllers.forEach((size, ctrl) {
+        updatedSizeMap[size] = int.tryParse(ctrl.text) ?? 0;
+      });
 
+      // Custom sizes
+      for (final row in customRows) {
+        final name = row.sizeCtrl.text.trim();
+        if (name.isNotEmpty) {
+          updatedSizeMap[name] = int.tryParse(row.qtyCtrl.text) ?? 0;
+        }
+      }
+
+      await ApiService.instance.updateSizeMap(
+        context,
+        product.id,
+        updatedSizeMap,
+      );
+
+      _loadProducts();
+    }
+
+    // Cleanup
+    for (final c in standardControllers.values) {
+      c.dispose();
+    }
+    for (final r in customRows) {
+      r.sizeCtrl.dispose();
+      r.qtyCtrl.dispose();
+    }
+  }
 
   Future<void> _openWhatsAppGroup(BuildContext context) async {
     const whatsappUrl = 'YOUR_WHATSAPP_GROUP_URL'; // Replace with actual URL
