@@ -237,29 +237,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
-  void _updateFilters({
-    String? categoryName,
-    bool? hasImage,
-    bool? isActive,
-    bool? canListed,
-    String? sizeFilter,
-    bool? hasOffer,
-    bool? inStock,
-  }) {
-    setState(() {
-      _filterOptions = ProductFilterOptions(
-        searchQuery: _filterOptions.searchQuery,
-        categoryName: categoryName,
-        hasImage: hasImage,
-        isActive: isActive,
-        canListed: canListed,
-        sizeFilter: sizeFilter,
-        hasOffer: hasOffer,
-        inStock: inStock,
-      );
-      _applyFiltersAndSort();
-    });
-  }
+void _updateFilters({
+  String? categoryName,
+  bool? hasImage,
+  bool? isActive,
+  bool? canListed,
+  String? sizeFilter,
+  bool? hasOffer,
+  bool? inStock,
+}) {
+  setState(() {
+    _filterOptions = ProductFilterOptions(
+      searchQuery: _filterOptions.searchQuery,
+      categoryName: categoryName ?? _filterOptions.categoryName,
+      hasImage: hasImage ?? _filterOptions.hasImage,
+      isActive: isActive ?? _filterOptions.isActive,
+      canListed: canListed ?? _filterOptions.canListed,
+      sizeFilter: sizeFilter ?? _filterOptions.sizeFilter,
+      hasOffer: hasOffer ?? _filterOptions.hasOffer,
+      inStock: inStock ?? _filterOptions.inStock,
+    );
+    _applyFiltersAndSort();
+  });
+}
+
 
   void _updateSort(ProductSortOption option) {
     setState(() {
@@ -444,6 +445,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   isActive: isActive,
                   canListed: canListed,
                   sizeFilter: selectedSize,
+                  hasOffer: hasOffer, // Pass new value
+                  inStock: inStock, // Pass new value
                 );
                 Navigator.of(context).pop();
               },
@@ -1160,6 +1163,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
         onRemove: () => _updateFilters(sizeFilter: null),
       ));
     }
+    if (_filterOptions.hasOffer != null) {
+  chips.add(_FilterChip(
+    label: _filterOptions.hasOffer! ? 'In Offer' : 'No Offer',
+    onRemove: () => _updateFilters(hasOffer: null),
+  ));
+}
+
+if (_filterOptions.inStock != null) {
+  chips.add(_FilterChip(
+    label: _filterOptions.inStock! ? 'In Stock' : 'Out of Stock',
+    onRemove: () => _updateFilters(inStock: null),
+  ));
+}
     return chips;
   }
 
@@ -1500,30 +1516,50 @@ class _ProductsScreenState extends State<ProductsScreen> {
       ),
     );
 
-    if (result == true) {
-      final Map<String, int> updatedSizeMap = {};
+if (result == true) {
+  final Map<String, int> updatedSizeMap = {};
 
-      // Standard sizes
-      standardControllers.forEach((size, ctrl) {
-        updatedSizeMap[size] = int.tryParse(ctrl.text) ?? 0;
-      });
-
-      // Custom sizes
-      for (final row in customRows) {
-        final name = row.sizeCtrl.text.trim();
-        if (name.isNotEmpty) {
-          updatedSizeMap[name] = int.tryParse(row.qtyCtrl.text) ?? 0;
-        }
-      }
-
-      await ApiService.instance.updateSizeMap(
-        context,
-        product.id,
-        updatedSizeMap,
-      );
-
-      _loadProducts();
+  // Standard sizes
+  standardControllers.forEach((size, ctrl) {
+    final qty = int.tryParse(ctrl.text) ?? 0;
+    if (qty > 0) {
+      updatedSizeMap[size] = qty;
     }
+  });
+
+  // Custom sizes
+  for (final row in customRows) {
+    final size = row.sizeCtrl.text.trim();
+    final qty = int.tryParse(row.qtyCtrl.text) ?? 0;
+
+    if (size.isNotEmpty && qty > 0) {
+      updatedSizeMap[size] = qty;
+    }
+  }
+
+  try {
+    await ApiService.instance.updateSizeMap(
+      context,
+      product.id,
+      updatedSizeMap,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Stock updated successfully')),
+    );
+
+    await _loadProducts(); // Refresh UI
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to update stock: $e')),
+    );
+  }
+}
+
 
     // Cleanup
     for (final c in standardControllers.values) {
