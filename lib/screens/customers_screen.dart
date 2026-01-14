@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/customer.dart';
 import '../services/customer_service.dart';
 
@@ -105,6 +107,35 @@ class _CustomersScreenState extends State<CustomersScreen> {
     if (confirm == true) {
       await _customerService.deleteCustomer(customer.id);
       _loadCustomers();
+    }
+  }
+
+  void _openWhatsApp(String mobile) async {
+    if (mobile.isNotEmpty) {
+      final url = Uri.parse('https://wa.me/$mobile/?text=${Uri.encodeComponent("Hi, This is Admin from Adrenaline sports store")}');
+      try {
+        await launchUrl(url);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not launch WhatsApp: $e'),
+          ),
+        );
+      }
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('No Mobile Number'),
+          content: const Text('This customer does not have a mobile number.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -231,11 +262,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                                 DataCell(Row(
                                                   children: [
                                                     IconButton(
-                                                        icon: const Icon(Icons.edit),
-                                                        onPressed: () => _openDialog(c)),
+                                                      icon: const Icon(Icons.edit),
+                                                      onPressed: () => _openDialog(c),
+                                                    ),
                                                     IconButton(
-                                                        icon: const Icon(Icons.delete),
-                                                        onPressed: () => _deleteCustomer(c)),
+                                                      icon: const Icon(Icons.delete),
+                                                      onPressed: () => _deleteCustomer(c),
+                                                    ),
+                                                    IconButton(
+                                                      icon: const FaIcon(FontAwesomeIcons.whatsapp),
+                                                      onPressed: () => _openWhatsApp(c.mobile),
+                                                    ),
                                                   ],
                                                 )),
                                               ]);
@@ -304,6 +341,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
           children: [
             IconButton(icon: const Icon(Icons.edit), onPressed: () => _openDialog(c)),
             IconButton(icon: const Icon(Icons.delete), onPressed: () => _deleteCustomer(c)),
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.whatsapp),
+              onPressed: () => _openWhatsApp(c.mobile),
+            ),
           ],
         ),
       ),
