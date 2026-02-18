@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_admin_app/services/sale_service.dart';
-import 'screens/products_screen.dart';
-import 'screens/dashboard_screen.dart';
-import 'screens/splash_screen.dart';
-import 'screens/sales_screen.dart';
-import 'screens/customers_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -16,209 +12,74 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SSMS Admin',
+      title: 'Adrenaline Sports Admin',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const AdminWebView(),
     );
   }
 }
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class AdminWebView extends StatefulWidget {
+  const AdminWebView({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<AdminWebView> createState() => _AdminWebViewState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-  int _pendingSalesCount = 0;
-  final SaleService _saleService = SaleService();
-
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const ProductsScreen(),
-    const SalesScreen(),
-    const CustomersScreen(), // Add CustomersScreen
-  ];
+class _AdminWebViewState extends State<AdminWebView> {
+  late final WebViewController controller;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchPendingSalesCount();
-  }
-
-  Future<void> _fetchPendingSalesCount() async {
-    try {
-      final count = await _saleService.getPendingSalesCount();
-      if (mounted) {
-        setState(() {
-          _pendingSalesCount = count;
-        });
-      }
-    } catch (e) {
-      print('Failed to fetch pending sales count: $e');
-      // Optionally show a snackbar or handle the error in UI
-    }
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading bar.
+          },
+          onPageStarted: (String url) {
+            setState(() {
+              _isLoading = true;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          onWebResourceError: (WebResourceError error) {
+            debugPrint('Web resource error: ${error.description}');
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse('https://admin.adrenalinesportsstore.in/'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SSMS Admin'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            WebViewWidget(controller: controller),
+            if (_isLoading)
+              const Center(
+                child: CircularProgressIndicator(),
+              ),
+          ],
+        ),
       ),
-      drawer: _buildDrawer(context),
-      body: _screens[_selectedIndex],
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'SSMS Admin',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Management System',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _DrawerItem(
-            icon: Icons.dashboard,
-            title: 'Dashboard',
-            isSelected: _selectedIndex == 0,
-            onTap: () {
-              setState(() => _selectedIndex = 0);
-              Navigator.pop(context);
-            },
-          ),
-          _DrawerItem(
-            icon: Icons.inventory_2,
-            title: 'Products',
-            isSelected: _selectedIndex == 1,
-            onTap: () {
-              setState(() => _selectedIndex = 1);
-              Navigator.pop(context);
-            },
-          ),
-          const Divider(),
-          _DrawerItem(
-            icon: Icons.shopping_cart,
-            title: 'Sales',
-            isSelected: _selectedIndex == 2,
-            pendingCount: _pendingSalesCount,
-            onTap: () {
-              setState(() => _selectedIndex = 2);
-              _fetchPendingSalesCount();
-              Navigator.pop(context);
-            },
-          ),
-          _DrawerItem(
-            icon: Icons.people,
-            title: 'Customers',
-            isSelected: _selectedIndex == 3,
-            onTap: () {
-              setState(() => _selectedIndex = 3);
-              Navigator.pop(context);
-            },
-          ),
-          const Divider(),
-          _DrawerItem(
-            icon: Icons.local_offer,
-            title: 'Offers',
-            onTap: () => _showFeatureNotAvailable(context, 'Offers'),
-          ),
-          _DrawerItem(
-            icon: Icons.category,
-            title: 'Categories',
-            onTap: () => _showFeatureNotAvailable(context, 'Categories'),
-          ),
-          const Divider(),
-          _DrawerItem(
-            icon: Icons.settings,
-            title: 'Settings',
-            onTap: () => _showFeatureNotAvailable(context, 'Settings'),
-          ),
-          _DrawerItem(
-            icon: Icons.info,
-            title: 'About',
-            onTap: () => _showFeatureNotAvailable(context, 'About'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFeatureNotAvailable(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon!'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-}
-
-class _DrawerItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  final bool isSelected;
-  final int? pendingCount;
-
-  const _DrawerItem(
-      {required this.icon,
-      required this.title,
-      required this.onTap,
-      this.isSelected = false,
-      this.pendingCount,
-      Key? key})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Row(
-        children: [
-          Text(title),
-          if (pendingCount != null && pendingCount! > 0) ...[
-            const SizedBox(width: 8),
-            Badge(
-              label: Text('$pendingCount'),
-            ),
-          ]
-        ],
-      ),
-      selected: isSelected,
-      selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
-      onTap: onTap,
     );
   }
 }
